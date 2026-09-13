@@ -1,0 +1,24 @@
+services:
+  flow-finance:
+    build:
+      context: .
+      args:
+        GIT_COMMIT: ${FLOW_GIT_COMMIT:-unknown}
+    container_name: flow-finance
+    restart: unless-stopped
+    ports:
+      - "8010:8010"
+    environment:
+      FLOW_DB_PATH: /data/flow.db
+      FLOW_UPDATE_ENABLED: "1"
+      FLOW_MAINTENANCE_DIR: /maintenance
+      FLOW_GIT_COMMIT: ${FLOW_GIT_COMMIT:-unknown}
+    volumes:
+      - ./data:/data
+      - /var/lib/flow-finance-maintenance:/maintenance
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/api/health', timeout=3).read()"]
+      interval: 10s
+      timeout: 4s
+      start_period: 15s
+      retries: 6
