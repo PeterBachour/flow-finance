@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "version": "6.4.0",
+      "date": "2026-09-14",
+      "title": "Flow V6.4 — Safe to Spend explicable",
+      "highlights": [
+        "Formule réconciliée au centime",
+        "Sources et statuts de chaque composante",
+        "Évolution historique explicitement qualifiée",
+        "Aucun changement du ledger"
+      ]
+    },
+    {
       "version": "6.3.0",
       "date": "2026-09-14",
       "title": "Flow V6.3 — Cockpit prédictif",

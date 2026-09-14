@@ -1,4 +1,6 @@
-# Flow Finance\n\n> Version 6.3.0 — cockpit prédictif avec Safe to Spend certifié et trajectoire quotidienne jusqu'au prochain salaire.
+# Flow Finance
+
+> Version 6.4.0 — cockpit prédictif avec Safe to Spend certifié et trajectoire quotidienne jusqu'au prochain salaire.
 
 Flow Finance est une PWA personnelle de pilotage financier, auto-hébergée et orientée décision.
 
@@ -39,6 +41,10 @@ La V6.0 ajoute un inventaire unifié et strictement en lecture seule des preuves
 ## V6.1 — Safe to Spend certifié
 
 Le contrat `/api/v6/safe-to-spend` centralise le disponible total et quotidien, les composantes du calcul, le point bas, la confiance et trois trajectoires : engagée, réaliste et prudente. Il ne retourne aucun montant dépensable lorsque le solde de référence est absent ou obsolète.
+
+## V6.4 — Safe to Spend explicable
+
+Le contrat `/api/v6/safe-to-spend/explanation` réconcilie chaque composante au centime, expose ses sources, sa certitude, le point bas prudent et une comparaison historique explicitement qualifiée. L'interface `Comprendre ce montant` reste strictement en lecture seule.
 
 ## V6.2 — Trajectoire quotidienne
 

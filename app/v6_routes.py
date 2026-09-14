@@ -19,6 +19,12 @@ def certified_safe_to_spend(as_of: date | None = None, horizon_days: int | None 
 
 
 
+@router.get('/safe-to-spend/explanation')
+def safe_to_spend_explanation(as_of: date | None = None, horizon_days: int | None = Query(default=None, ge=0, le=366)):
+    with connection() as conn:
+        return build_safe_to_spend_explanation(conn, as_of=as_of, horizon_days=horizon_days)
+
+
 @router.get('/trajectory')
 def daily_trajectory(as_of: date | None = None, horizon_days: int | None = Query(default=None, ge=0, le=366)):
     with connection() as conn:
