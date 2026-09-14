@@ -11,7 +11,7 @@ import urllib.request
 from pathlib import Path
 
 REPO = Path(os.environ.get('FLOW_REPO_ROOT', '')).resolve()
-APP = REPO / 'flow-finance'
+APP = REPO
 HELPER = Path(__file__).resolve()
 HELPER_MTIME = HELPER.stat().st_mtime_ns
 MAINTENANCE = Path(os.getenv('FLOW_MAINTENANCE_DIR', '/var/lib/flow-finance-maintenance'))
@@ -56,7 +56,7 @@ def prerequisites():
     if not APP.exists():
         errors.append(f'Dossier Flow introuvable: {APP}')
     if not (APP / 'docker-compose.yml').is_file():
-        errors.append('flow-finance/docker-compose.yml introuvable')
+        errors.append('docker-compose.yml introuvable')
     if shutil.which('git') is None:
         errors.append('git introuvable')
     if shutil.which('docker') is None:
@@ -81,7 +81,7 @@ def commits(fetch=True):
 
 def version_for_ref(ref):
     try:
-        text = run('git', 'show', f'{ref}:flow-finance/app/version.py', timeout=30)
+        text = run('git', 'show', f'{ref}:app/version.py', timeout=30)
         match = re.search(r"VERSION\s*=\s*['\"]([^'\"]+)['\"]", text)
         return match.group(1) if match else ''
     except Exception:
@@ -105,7 +105,7 @@ def relation(current, remote):
 
 
 def validate_python_ref(ref):
-    files = run('git', 'ls-tree', '-r', '--name-only', ref, 'flow-finance/app', timeout=60).splitlines()
+    files = run('git', 'ls-tree', '-r', '--name-only', ref, 'app', timeout=60).splitlines()
     checked = 0
     for path in files:
         if not path.endswith('.py'):
