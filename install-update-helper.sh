@@ -2,7 +2,7 @@
 set -euo pipefail
 
 FLOW_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$FLOW_DIR/.." && pwd)"
+REPO_ROOT="$FLOW_DIR"
 USER_NAME="${SUDO_USER:-$USER}"
 GROUP_NAME="$(id -gn "$USER_NAME")"
 MAINT_DIR="/var/lib/flow-finance-maintenance"
