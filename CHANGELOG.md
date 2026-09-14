@@ -1,5 +1,12 @@
 # Flow Finance — Changelog
 
+## 6.1.0 — 2026-09-14
+- Nouveau contrat certifié `GET /api/v6/safe-to-spend` fondé sur le moteur financier existant.
+- Décomposition complète du solde, des échéances, récurrences, objectifs et marge de sécurité.
+- Trois projections distinctes : engagée, réaliste et prudente.
+- Point bas daté pour les événements confirmés, budget quotidien et confiance explicitée.
+- Aucun montant disponible n'est exposé lorsque le solde est absent ou obsolète.
+
 ## 6.0.0 — 2026-09-14
 - Ajout d'un référentiel documentaire unifié en lecture seule pour les relevés, fiches de paie et transactions importées.
 - Nouvelle matrice mensuelle complète / à revoir / partielle / manquante sur une fenêtre configurable.

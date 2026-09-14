@@ -8,7 +8,7 @@ Sa question centrale est :
 
 ## État du projet
 
-- Version applicative : `6.0.0`
+- Version applicative : `6.1.0`
 - Dépôt de référence : `PeterBachour/flow-finance`
 - Branche de référence : `main`
 - Runtime cible : Raspberry Pi 4 sous Debian 13
@@ -35,6 +35,10 @@ Flow n'est pas un simple tableau de comptes. L'application doit :
 ## V6.0 — Confiance documentaire
 
 La V6.0 ajoute un inventaire unifié et strictement en lecture seule des preuves financières : matrice mensuelle, relevés, fiches de paie, identités de source, liens vers les transactions et niveau de vérification. Les endpoints `/api/v6/documentary-evidence` et `/api/v6/transactions/{id}/evidence` rendent chaque donnée importée explicable sans conserver les fichiers personnels dans Git.
+
+## V6.1 — Safe to Spend certifié
+
+Le contrat `/api/v6/safe-to-spend` centralise le disponible total et quotidien, les composantes du calcul, le point bas, la confiance et trois trajectoires : engagée, réaliste et prudente. Il ne retourne aucun montant dépensable lorsque le solde de référence est absent ou obsolète.
 
 ## Fonctionnalités disponibles
 

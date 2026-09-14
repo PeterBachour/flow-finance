@@ -1,6 +1,18 @@
 {
   "releases": [
     {
+      "version": "6.1.0",
+      "date": "2026-09-14",
+      "title": "Flow V6.1 — Safe to Spend certifié",
+      "highlights": [
+        "Contrat unique pour le disponible total et quotidien",
+        "Décomposition de chaque composante du calcul",
+        "Projections engagée, réaliste et prudente",
+        "Point bas et confiance explicités",
+        "Aucun disponible publié avec un solde absent ou obsolète"
+      ]
+    },
+    {
       "version": "6.0.0",
       "date": "2026-09-14",
       "title": "Flow V6.0 — Confiance documentaire",
