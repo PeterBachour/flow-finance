@@ -1,0 +1,49 @@
+name: Flow Finance CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flow-finance-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Python 3.13 validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Compile application
+        run: python -m compileall -q app maintenance tests
+
+      - name: Run test suite
+        env:
+          FLOW_DB_PATH: ${{ runner.temp }}/flow-ci.db
+          FLOW_UPDATE_ENABLED: '0'
+        run: pytest -q
+
+      - name: Build Docker image
+        run: docker build --build-arg GIT_COMMIT=${{ github.sha }} -t flow-finance:ci .
+
+      - name: Smoke-test Docker image
+        run: docker run --rm --entrypoint python -e FLOW_DB_PATH=/tmp/flow-smoke.db -e FLOW_UPDATE_ENABLED=0 flow-finance:ci -c 'import app.main; assert app.main.app.title == "Flow Finance"'
