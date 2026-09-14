@@ -20,4 +20,4 @@ def test_v63_chart_is_accessible_and_versioned():
     assert 'role="button" tabindex="0"' in script
     assert "event.key==='Enter'||event.key===' '" in script
     assert "const VERSION='6.3.0'" in script
-    assert "const VERSION = '6.3.0'" in (ROOT/'app'/'version.py').read_text(encoding='utf-8')
+    assert "VERSION = '6.3.0'" in (ROOT/'app'/'version.py').read_text(encoding='utf-8')
