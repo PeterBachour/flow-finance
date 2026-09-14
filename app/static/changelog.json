@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "version": "6.3.0",
+      "date": "2026-09-14",
+      "title": "Cockpit prédictif",
+      "highlights": [
+        "Safe to Spend certifié visible dès l'accueil",
+        "Trajectoires engagée, réaliste et prudente",
+        "Bande d'incertitude et seuil protégé",
+        "Détail quotidien tactile et accessible"
+      ]
+    },
+    {
       "version": "6.2.0",
       "date": "2026-09-14",
       "title": "Flow V6.2 — Trajectoire quotidienne",
@@ -457,4 +468,4 @@
       ]
     }
   ]
-}
+}\n

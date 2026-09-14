@@ -1,4 +1,4 @@
-# Flow Finance — Changelog
+## 6.3.0 — Cockpit prédictif\n\n- Safe to Spend certifié dans le héros d'accueil.\n- Trajectoires engagée, réaliste et prudente jusqu'au prochain salaire.\n- Bande d'incertitude, seuil protégé et détail quotidien interactif.\n- Vues 7 jours et cycle, navigation tactile et clavier.\n- Blocage du montant lorsque le solde bancaire est obsolète.\n\n# Flow Finance — Changelog
 
 ## 6.2.0 — 2026-09-14
 - Ajout d'une trajectoire quotidienne unifiée jusqu'à l'horizon du Safe to Spend.

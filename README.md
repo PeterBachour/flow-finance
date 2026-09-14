@@ -1,4 +1,4 @@
-# Flow Finance
+# Flow Finance\n\n> Version 6.3.0 — cockpit prédictif avec Safe to Spend certifié et trajectoire quotidienne jusqu'au prochain salaire.
 
 Flow Finance est une PWA personnelle de pilotage financier, auto-hébergée et orientée décision.
 
