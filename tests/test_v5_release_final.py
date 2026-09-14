@@ -34,7 +34,7 @@ def test_current_runtime_is_first_release_exposed_by_changelog_api():
     version = _runtime_version()
     data = changelog()
     assert data['releases'][0]['version'] == version
-    assert data['releases'][0]['title'].startswith('Flow V5')
+    assert data['releases'][0]['title'].startswith(f'Flow V{version.split(".")[0]}')
     assert data['releases'][0]['highlights']
 
 
