@@ -8,7 +8,7 @@ Sa question centrale est :
 
 ## État du projet
 
-- Version applicative : `5.7.0`
+- Version applicative : `6.0.0`
 - Dépôt de référence : `PeterBachour/flow-finance`
 - Branche de référence : `main`
 - Runtime cible : Raspberry Pi 4 sous Debian 13
@@ -31,6 +31,10 @@ Flow n'est pas un simple tableau de comptes. L'application doit :
 5. exiger une validation explicite avant toute correction financière ;
 6. transformer les données en décisions compréhensibles ;
 7. rester utilisable sur iPhone, iPad et ordinateur.
+
+## V6.0 — Confiance documentaire
+
+La V6.0 ajoute un inventaire unifié et strictement en lecture seule des preuves financières : matrice mensuelle, relevés, fiches de paie, identités de source, liens vers les transactions et niveau de vérification. Les endpoints `/api/v6/documentary-evidence` et `/api/v6/transactions/{id}/evidence` rendent chaque donnée importée explicable sans conserver les fichiers personnels dans Git.
 
 ## Fonctionnalités disponibles
 

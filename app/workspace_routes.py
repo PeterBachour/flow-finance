@@ -36,6 +36,7 @@ from .v411_routes import router as v411_router
 from .v5_routes import router as v5_router
 from .v55_routes import router as v55_router
 from .v57_routes import router as v57_router
+from .v6_routes import router as v6_router
 
 router = APIRouter()
 router.include_router(financial_router)
@@ -69,6 +70,7 @@ router.include_router(v411_router)
 router.include_router(v5_router)
 router.include_router(v55_router)
 router.include_router(v57_router)
+router.include_router(v6_router)
 
 
 class BalanceIn(BaseModel):

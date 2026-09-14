@@ -1,5 +1,12 @@
 # Flow Finance — Changelog
 
+## 6.0.0 — 2026-09-14
+- Ajout d'un référentiel documentaire unifié en lecture seule pour les relevés, fiches de paie et transactions importées.
+- Nouvelle matrice mensuelle complète / à revoir / partielle / manquante sur une fenêtre configurable.
+- Traçabilité transaction vers relevé, identité documentaire, empreinte de ligne et payload brut.
+- Nouveaux endpoints `GET /api/v6/documentary-evidence` et `GET /api/v6/transactions/{id}/evidence`.
+- Aucun document personnel n'est stocké dans Git ni répliqué par la nouvelle API.
+
 ## 5.7.0 — 2026-09-12
 - Ajout du Data Quality Action Center dans le parcours Mouvements.
 - Priorisation déterministe des relevés récents manquants, relevés à revoir, doublons puis fiches de paie manquantes.

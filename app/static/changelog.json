@@ -1,6 +1,18 @@
 {
   "releases": [
     {
+      "version": "6.0.0",
+      "date": "2026-09-14",
+      "title": "Flow V6.0 — Confiance documentaire",
+      "highlights": [
+        "Référentiel unifié des preuves pour les relevés, fiches de paie et transactions importées",
+        "Matrice mensuelle complète, partielle, à revoir ou manquante",
+        "Traçabilité d'une transaction vers son document, son empreinte et son payload brut",
+        "Contrats V6 strictement en lecture seule",
+        "Aucun document financier personnel stocké dans le dépôt"
+      ]
+    },
+    {
       "version": "5.5.0",
       "date": "2026-09-12",
       "title": "Flow V5.5 — Couverture historique & import multi-documents",
