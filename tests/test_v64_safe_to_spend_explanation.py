@@ -28,7 +28,7 @@ def database(balance_as_of='2026-09-14'):
     ALTER TABLE financial_goals ADD COLUMN monthly_contribution_cents INTEGER NOT NULL DEFAULT 0;
     """)
     conn.execute("INSERT INTO settings VALUES('safety_reserve_cents','10000')")
-    conn.execute("INSERT INTO accounts VALUES(1,'Courant','checking',100000,1,?,1)",(balance_as_of,))
+    conn.execute("INSERT INTO accounts(id,name,kind,current_balance_cents,is_active,balance_as_of,include_in_safe_to_spend) VALUES(1,'Courant','checking',100000,1,?,1)",(balance_as_of,))
     return conn
 
 

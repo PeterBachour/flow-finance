@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.3.0';
+  const VERSION='6.4.0';
   const state={scenario:'realistic',range:'cycle',selected:0};
   let payload=null,loading=false;
   const q=(selector,root=document)=>root.querySelector(selector);
