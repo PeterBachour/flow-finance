@@ -8,7 +8,7 @@ Sa question centrale est :
 
 ## État du projet
 
-- Version applicative : `6.1.0`
+- Version applicative : `6.2.0`
 - Dépôt de référence : `PeterBachour/flow-finance`
 - Branche de référence : `main`
 - Runtime cible : Raspberry Pi 4 sous Debian 13
@@ -39,6 +39,10 @@ La V6.0 ajoute un inventaire unifié et strictement en lecture seule des preuves
 ## V6.1 — Safe to Spend certifié
 
 Le contrat `/api/v6/safe-to-spend` centralise le disponible total et quotidien, les composantes du calcul, le point bas, la confiance et trois trajectoires : engagée, réaliste et prudente. Il ne retourne aucun montant dépensable lorsque le solde de référence est absent ou obsolète.
+
+## V6.2 — Trajectoire quotidienne
+
+Le contrat `/api/v6/trajectory` expose une série quotidienne commune aux projections engagée, réaliste et prudente. La zone d'incertitude repose sur les dépenses variables historiques, tandis que les échéances et récurrences équivalentes sont dédupliquées.
 
 ## Fonctionnalités disponibles
 

@@ -1,5 +1,12 @@
 # Flow Finance — Changelog
 
+## 6.2.0 — 2026-09-14
+- Ajout d'une trajectoire quotidienne unifiée jusqu'à l'horizon du Safe to Spend.
+- Trois scénarios alignés : engagé, réaliste et prudent.
+- Zone d'incertitude issue des dépenses variables historiques, avec méthode et confiance exposées.
+- Déduplication des échéances planifiées et récurrences correspondantes.
+- La marge de sécurité reste une protection de solde et n'est jamais traitée comme une dépense.
+
 ## 6.1.0 — 2026-09-14
 - Nouveau contrat certifié `GET /api/v6/safe-to-spend` fondé sur le moteur financier existant.
 - Décomposition complète du solde, des échéances, récurrences, objectifs et marge de sécurité.

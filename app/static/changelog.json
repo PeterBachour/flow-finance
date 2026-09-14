@@ -1,6 +1,18 @@
 {
   "releases": [
     {
+      "version": "6.2.0",
+      "date": "2026-09-14",
+      "title": "Flow V6.2 — Trajectoire quotidienne",
+      "highlights": [
+        "Trajectoire quotidienne jusqu'à l'horizon de décision",
+        "Scénarios engagé, réaliste et prudent",
+        "Zone d'incertitude explicable",
+        "Déduplication des engagements planifiés et récurrents",
+        "Marge de sécurité traitée comme une protection, jamais comme une dépense"
+      ]
+    },
+    {
       "version": "6.1.0",
       "date": "2026-09-14",
       "title": "Flow V6.1 — Safe to Spend certifié",

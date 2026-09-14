@@ -14,14 +14,14 @@ def test_v57_release_surfaces_are_synchronized():
     service_worker = (STATIC / 'sw.js').read_text(encoding='utf-8')
     manifest = (STATIC / 'manifest.webmanifest').read_text(encoding='utf-8')
 
-    assert VERSION == '6.1.0'
-    assert "const VERSION='6.1.0';" in runtime
-    assert "const VERSION='6.1.0';" in service_worker
-    assert '?v=6.1.0' in index
+    assert VERSION == '6.2.0'
+    assert "const VERSION='6.2.0';" in runtime
+    assert "const VERSION='6.2.0';" in service_worker
+    assert '?v=6.2.0' in index
     assert '?v=5.5.0' not in index
-    assert '?v=6.1.0' in service_worker
+    assert '?v=6.2.0' in service_worker
     assert '?v=5.5.0' not in service_worker
-    assert '?v=6.1.0' in manifest
+    assert '?v=6.2.0' in manifest
     assert '?v=5.5.0' not in manifest
 
 
@@ -41,6 +41,6 @@ def test_v57_action_center_contract_is_loaded_and_read_only():
 
 def test_v57_release_is_first_in_exposed_changelog():
     data = changelog()
-    assert data['releases'][0]['version'] == '6.1.0'
-    assert data['releases'][0]['title'] == 'Flow V6.1 — Safe to Spend certifié'
+    assert data['releases'][0]['version'] == '6.2.0'
+    assert data['releases'][0]['title'] == 'Flow V6.2 — Trajectoire quotidienne'
     assert data['releases'][0]['highlights']

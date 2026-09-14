@@ -6,6 +6,7 @@ from .bulk_import import ensure_bulk_schema
 from .certified_safe_to_spend import build_certified_safe_to_spend
 from .db import connection
 from .documentary_evidence import build_documentary_evidence, transaction_evidence
+from .forecast_v6 import build_v6_daily_trajectory
 from .imports import ensure_import_schema
 
 router = APIRouter(prefix='/api/v6', tags=['v6'])
@@ -16,6 +17,12 @@ def certified_safe_to_spend(as_of: date | None = None, horizon_days: int | None 
     with connection() as conn:
         return build_certified_safe_to_spend(conn, as_of=as_of, horizon_days=horizon_days)
 
+
+
+@router.get('/trajectory')
+def daily_trajectory(as_of: date | None = None, horizon_days: int | None = Query(default=None, ge=0, le=366)):
+    with connection() as conn:
+        return build_v6_daily_trajectory(conn, as_of=as_of, horizon_days=horizon_days)
 
 
 @router.get('/documentary-evidence')
