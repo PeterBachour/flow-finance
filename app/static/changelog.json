@@ -1,0 +1,424 @@
+{
+  "releases": [
+    {
+      "version": "5.5.0",
+      "date": "2026-09-12",
+      "title": "Flow V5.5 — Couverture historique & import multi-documents",
+      "highlights": [
+        "Couverture des relevés bancaires et fiches de paie sur une fenêtre configurable, 24 mois par défaut",
+        "Détection explicite des mois manquants, périodes à revoir, doublons et mois complètement documentés",
+        "Import de plusieurs PDF/CSV depuis Mouvements avec staging sans écriture avant validation explicite",
+        "Audit historique en ligne de commande strictement en lecture seule",
+        "Backend, runtime principal, manifest et cache PWA synchronisés en 5.5.0"
+      ]
+    },
+    {
+      "version": "5.4.0",
+      "date": "2026-09-12",
+      "title": "Flow V5.4 — Stabilisation sûre",
+      "highlights": [
+        "Revues d’import synchronisées avec les catégorisations explicites sans masquer les anomalies comptables",
+        "Promotion d’un relevé en vérifié uniquement après revue terminée et équation comptable cohérente",
+        "Outil de rapprochement des revues d’import en dry-run par défaut",
+        "Image Docker testée avant tout redémarrage lors d’une mise à jour",
+        "Audit financier quotidien en lecture seule avec échec uniquement sur les anomalies financières dures",
+        "Version applicative, assets et cache PWA synchronisés en 5.4.0"
+      ]
+    },
+    {
+      "version": "5.3.0",
+      "date": "2026-09-11",
+      "title": "Flow V5.3 — Snapshot financier unifié",
+      "highlights": [
+        "Un seul snapshot financier partagé par l’Accueil, le centre de décision et le pilotage prédictif",
+        "Calcul du cockpit, du plan et des recommandations exécuté une seule fois par requête puis réutilisé sans divergence",
+        "Suppression des appels frontend redondants vers les contrats décisionnels V5",
+        "Invalidation coordonnée du snapshot après une action sur une décision financière",
+        "Snapshot strictement en lecture seule : aucune transaction, aucun solde, aucun budget et aucun objectif ne sont modifiés",
+        "Release validée par une recette complète de 103 tests avant publication"
+      ]
+    },
+    {
+      "version": "5.2.0",
+      "date": "2026-09-11",
+      "title": "Flow V5.2 — Centre de décision unifié",
+      "highlights": [
+        "Nouveau centre de décision V5.2 fusionnant recommandations calculées et vraies décisions financières dans une file unique priorisée et dédupliquée",
+        "Séparation stricte des tâches de qualité de données, qui restent hors de la file de décision financière",
+        "Cycle de vie explicite des vraies décisions financières avec statuts Traité, Ignoré et Rouvrir, sans mutation des transactions, soldes, budgets ou objectifs",
+        "Notes facultatives, date de mise à jour et historique récent des décisions fermées, persistés uniquement comme métadonnées de pilotage",
+        "Garde-fou serveur interdisant toute modification de statut d’une recommandation calculée V5",
+        "Release validée par une recette complète de 91 tests avant publication"
+      ]
+    },
+    {
+      "version": "5.1.0",
+      "date": "2026-09-11",
+      "title": "Flow V5.1 — Pilotage financier avancé",
+      "highlights": [
+        "Agenda financier des prochaines échéances et revenus avec solde après événement, distance à la protection et niveau de vigilance",
+        "Scénarios sauvegardables et comparables, persistés séparément du ledger réel avec suppression logique",
+        "Pilotage avancé des objectifs : effort requis, contribution recommandée, capacité mensuelle et simulation de contribution en lecture seule",
+        "Projection multi-mois corrigée pour intégrer explicitement les dépenses variables estimées à partir du rythme canonique de Flow, tout en conservant le forecast known-only pour audit",
+        "Alignement temporel du forecast V5 sur la date de référence et propagation de la trajectoire estimée vers les scénarios, objectifs, agenda et risque prédictif",
+        "Release validée par une recette complète de 79 tests avant publication"
+      ]
+    },
+    {
+      "version": "5.0.0",
+      "date": "2026-09-11",
+      "title": "Flow V5 — Cockpit financier prédictif",
+      "highlights": [
+        "Nouveau contrat central /api/v5/cockpit utilisé par l’Accueil comme source unique des montants de décision",
+        "Projection multi-mois, scénarios en lecture seule et arbitrage explicable des objectifs",
+        "Recommandations déterministes avec priorité, preuve, impact estimé et action suggérée sans exécution automatique",
+        "Pilotage prédictif consolidé avec score de risque 0–100, checkpoints 1/3/6 mois et événements futurs sensibles",
+        "Suppression de l’ancienne surcouche home-canonical-ui du runtime, maintien d’un fallback V4 et alignement backend/runtime/cache/assets en 5.0.0",
+        "Release validée par une recette complète de 60 tests avant publication"
+      ]
+    },
+    {
+      "version": "4.7.0",
+      "date": "2026-09-11",
+      "title": "Flow V4.7 — Analyse avancée",
+      "highlights": [
+        "Analyse historique déterministe des dépenses variables sur les mois clôturés uniquement, avec le classifieur canonique",
+        "Comparaisons 3/6/12 mois, médianes de référence et tendances récentes par catégorie",
+        "Détection explicable des catégories inhabituellement élevées et des grosses dépenses variables",
+        "Priorisation des vraies décisions financières séparée des tâches de qualité de données",
+        "Diagnostic de version, commit, base et fraîcheur des soldes rendu explicite dans Réglages"
+      ]
+    },
+    {
+      "version": "4.6.0",
+      "date": "2026-09-11",
+      "title": "Flow V4.6 — Consolidation pré-V5",
+      "highlights": [
+        "Filtres historiques 30 jours, 3 mois, 6 mois et 12 mois sur les mouvements",
+        "Synthèse recalculée selon les filtres avec moyenne, top catégorie et comparaison à la période précédente",
+        "Mise à jour manuelle des soldes patrimoniaux avec date de valeur et snapshot historisé",
+        "Séparation des décisions financières et des revues de qualité de données",
+        "Refonte compacte des écrans Mouvements et Patrimoine"
+      ]
+    },
+    {
+      "version": "4.5.0",
+      "date": "2026-09-11",
+      "title": "Flow V4.5 — Visualisation & Pilotage",
+      "highlights": [
+        "Nouvelle trajectoire graphique du solde bancaire projeté jusqu’au prochain salaire avec repère de réserve de sécurité",
+        "Comparaison visuelle des dépenses variables sur les six derniers mois et synthèses 3/6/12 mois",
+        "Répartition des dépenses variables par catégorie à partir du classifieur financier canonique et uniquement sur les mois clôturés",
+        "Comparaison explicite du mois courant estimé avec la médiane historique sans inventer de transactions ou catégories",
+        "Runtime, backend, assets PWA et tests de non-régression alignés sur la version 4.5.0"
+      ]
+    },
+    {
+      "version": "4.4.0",
+      "date": "2026-09-11",
+      "title": "Flow V4.4 — UI Value Integrity",
+      "highlights": [
+        "Accueil entièrement aligné sur le moteur financier canonique : rythme conseillé, Safe, engagements, réserve, solde projeté et marge de fin de cycle",
+        "Écran Mois en cours adapté au fonctionnement par relevé mensuel : aucune valeur 0 € n’est présentée comme une dépense ou un revenu réellement observé avant la clôture",
+        "Écran Mouvements explicite qu’une liste vide en cours de mois signifie relevé mensuel en attente et non absence de dépenses",
+        "Carte Données et projection débarrassée du faux statut mouvements non à jour et de l’import CSV courant incompatible avec le fonctionnement réel",
+        "Preuve de calcul séparant anomalies comptables bloquantes et simples revues documentaires, avec suppression des alertes inutilement alarmistes"
+      ]
+    },
+    {
+      "version": "4.3.3",
+      "date": "2026-09-10",
+      "title": "Flow V4.3.3 — Forecast explicable",
+      "highlights": [
+        "Distinction explicite entre Safe, réserve de sécurité, engagements protégés, marge de fin de cycle et solde bancaire projeté",
+        "Ajout du vrai solde bancaire projeté à l’horizon après engagements et dépenses variables estimées",
+        "Mode mensuel estimé reconnu comme fonctionnement normal avec statut relevé mensuel en attente"
+      ]
+    },
+    {
+      "version": "4.3.2",
+      "date": "2026-09-10",
+      "title": "Flow V4.3.2 — Accueil canonique",
+      "highlights": [
+        "Carte principale raccordée au moteur /api/finance/intelligence",
+        "Rythme quotidien conseillé affiché comme décision principale au lieu des anciens champs à zéro",
+        "Safe, solde réel et projection de fin de cycle issus d’une source financière unique"
+      ]
+    },
+    {
+      "version": "4.3.1",
+      "date": "2026-09-10",
+      "title": "Flow V4.3.1 — Engagements complets",
+      "highlights": [
+        "Intégration des réserves de cycle dans la vue des engagements",
+        "Protection contre le double comptage entre réserves de cycle, échéances planifiées et récurrents",
+        "Total protégé entièrement explicable avant le prochain salaire"
+      ]
+    },
+    {
+      "version": "4.3.0",
+      "date": "2026-09-10",
+      "title": "Flow V4.3 — Commitment Engine",
+      "highlights": [
+        "Audit et classification des engagements récurrents en confirmés, probables, anciens ou rejetés",
+        "Validation explicite des récurrences avant impact sur le Safe to Spend",
+        "Protection anti-double comptage entre échéances planifiées et récurrents"
+      ]
+    },
+    {
+      "version": "4.2.0",
+      "date": "2026-09-10",
+      "title": "Flow V4.2 — Financial Data Integrity",
+      "highlights": [
+        "Audit comptable des relevés importés avec contrôle solde d'ouverture + crédits - débits = solde de clôture",
+        "Vérification des snapshots de clôture et des écarts entre relevé et ledger importé",
+        "Séparation stricte des transferts internes, remboursements, épargne et dépenses de consommation",
+        "Nouvelle carte Pourquoi ce montant ? avec reconstruction complète du Safe to Spend",
+        "Graphique des dépenses de consommation sur les six derniers mois et audit exécutable directement sur flow.db"
+      ]
+    },
+    {
+      "version": "4.1.2",
+      "date": "2026-09-10",
+      "title": "Flow V4.1.2 — Fiabilité du mois courant",
+      "highlights": [
+        "Mode balance-only explicite lorsque le mois courant ne contient pas encore assez de transactions confirmées",
+        "Calcul basé sur le dernier solde confirmé et les échéances connues plutôt que sur des dépenses inventées",
+        "Backfill idempotent des snapshots de solde manquants à partir des relevés bancaires validés",
+        "Alignement de la version applicative, du cache PWA, de la documentation et du changelog"
+      ]
+    },
+    {
+      "version": "4.1.0",
+      "date": "2026-09-10",
+      "title": "Flow V4.1 — Parcours de décision",
+      "highlights": [
+        "Navigation principale recentrée sur Accueil, Mois, Mouvements et Patrimoine",
+        "Disponible aujourd’hui, prochaine échéance et priorité décisionnelle visibles dès l’ouverture",
+        "Refonte responsive complète des cartes, listes, formulaires, filtres et états d’interface",
+        "Mois réorganisé autour du solde, du reste pilotable et du budget adaptatif",
+        "Routines, décisions secondaires, diagnostic et mises à jour regroupés dans Réglages"
+      ]
+    },
+    {
+      "version": "4.0.0",
+      "date": "2026-09-09",
+      "title": "Flow V4 — Consolidation",
+      "highlights": [
+        "Frontend consolidé autour d’un seul runtime v4-ui.js et d’un seul design system app.css",
+        "Les modules frontend v31 à v36 ne sont plus chargés par l’application",
+        "Accueil, Mois, Mouvements, Patrimoine et Plus réunissent les moteurs décisionnels V3 dans une architecture cohérente",
+        "Data Intelligence V3.7 et stratégie financière V3.8 intégrées directement aux parcours V4",
+        "PWA V4 avec cache unique, contrôle de version 4.0.0 et service worker sans dépendance aux anciennes couches UI"
+      ]
+    },
+    {
+      "version": "3.8.0",
+      "date": "2026-09-09",
+      "title": "Personal Financial Strategy",
+      "highlights": [
+        "Allocation déterministe : réserve, objectifs obligatoires, autres objectifs puis surplus non affecté",
+        "Prise en compte de la marge minimale du forecast avant de proposer une capacité disponible",
+        "Surplus stratégique affiché sans exécution d’investissement ni choix automatique d’instrument financier",
+        "Méthode et ordre de priorité affichés explicitement dans l’interface"
+      ]
+    },
+    {
+      "version": "3.7.0",
+      "date": "2026-09-09",
+      "title": "Data Intelligence",
+      "highlights": [
+        "Score de qualité de données basé sur catégorisation, exclusions, qualité de source et anomalies",
+        "Détection de dépenses atypiques et mouvements à faible confiance",
+        "Normalisation de marchands avec suggestions et alias confirmables explicitement",
+        "Aucune modification silencieuse des transactions à partir des suggestions de données"
+      ]
+    },
+    {
+      "version": "3.6.0",
+      "date": "2026-09-09",
+      "title": "Automation & Financial Routine",
+      "highlights": [
+        "Ouverture mensuelle et clôture du mois précédent déclenchées de manière idempotente depuis l’application",
+        "Rapprochement automatique des échéances planifiées avec les mouvements réels uniquement lorsque la confiance est élevée et non ambiguë",
+        "Decision Inbox consolidant imports à revoir, récurrences détectées, échéances non rapprochées, soldes obsolètes et objectifs à risque",
+        "Validation explicite obligatoire avant toute création de récurrence détectée",
+        "Routine financière quotidienne et suivi persistant des décisions sans création silencieuse de transaction bancaire"
+      ]
+    },
+    {
+      "version": "3.5.0",
+      "date": "2026-09-09",
+      "title": "Budget adaptatif & Clôture intelligente",
+      "highlights": [
+        "Budget restant recalculé à partir des dépenses réelles et de la marge Safe to Spend",
+        "Redistribution uniquement des catégories en mode limite, sans toucher aux montants réservés",
+        "Reste conseillé et budget quotidien par catégorie jusqu’à la fin du mois",
+        "Clôture analytique avec écart budget/réel, taux d’épargne et catégories dépassées",
+        "Aucune modification automatique des budgets ni création de transaction"
+      ]
+    },
+    {
+      "version": "3.4.0",
+      "date": "2026-09-09",
+      "title": "Plan d’action financier",
+      "highlights": [
+        "Plan du mois généré à partir du forecast, des objectifs, des soldes et des règles de protection",
+        "Priorisation des risques de liquidité, sorties prévues, objectifs sous-financés et soldes à actualiser",
+        "Montants proposés explicables sans création automatique de transaction ni déplacement d’argent",
+        "Actions marquables comme faites, ignorées ou rouvertes avec état persistant",
+        "Journalisation des changements de statut dans l’Activity Log"
+      ]
+    },
+    {
+      "version": "3.3.0",
+      "date": "2026-09-09",
+      "title": "Objectifs liés au forecast & Patrimoine projeté",
+      "highlights": [
+        "Projection déterministe des objectifs à partir de leur montant actuel, contribution mensuelle et date cible",
+        "Écart projeté, effort mensuel requis et signal de liquidité pour chaque objectif",
+        "Projection du patrimoine net sur 6 ou 12 mois à partir de la trajectoire de liquidité",
+        "Application d’un scénario V3.2 aux objectifs et au patrimoine pour mesurer son impact",
+        "Hypothèses de projection explicitement affichées pour éviter de présenter des valorisations futures comme certaines"
+      ]
+    },
+    {
+      "version": "3.2.0",
+      "date": "2026-09-09",
+      "title": "Prévision multi-mois & Scénarios persistants",
+      "highlights": [
+        "Projection financière explicite sur 3, 6 ou 12 mois",
+        "Clôture, point bas, entrées, sorties et marge sécurisée calculés mois par mois",
+        "Scénarios persistants séparés des données réelles",
+        "Hypothèses ponctuelles ou mensuelles avec comparaison baseline/scénario",
+        "Impact consolidé sur la clôture et le point bas sans création de transaction réelle"
+      ]
+    },
+    {
+      "version": "3.1.0",
+      "date": "2026-09-09",
+      "title": "Mouvements intelligents & Notifications",
+      "highlights": [
+        "Édition directe des mouvements : libellé, catégorie, transfert, exceptionnel et exclusion analytique",
+        "Création d’une règle de catégorisation depuis un mouvement avec application rétroactive optionnelle",
+        "Filtres qualité pour mouvements non catégorisés, transferts non liés, exceptionnels et exclus",
+        "Centre de notifications financières : Safe to Spend, grosses sorties, soldes obsolètes et imports à revoir",
+        "Préférences de notifications persistantes et Activity Log enrichi"
+      ]
+    },
+    {
+      "version": "3.0.1",
+      "date": "2026-09-09",
+      "title": "Stability & Hardening",
+      "highlights": [
+        "Validation syntaxique de tout le backend avant qu’une mise à jour soit proposée",
+        "Compilation Python obligatoire pendant le build Docker",
+        "Healthcheck Docker et smoke tests sur /api/health, /api/version et /api/v3/system",
+        "Validation de l’image construite avant redémarrage du service actif",
+        "Rollback automatique vers l’image précédente si la nouvelle version ne passe pas les contrôles runtime"
+      ]
+    },
+    {
+      "version": "3.0.0",
+      "date": "2026-09-09",
+      "title": "Flow V3",
+      "highlights": [
+        "Nouveau shell applicatif unique et nouveau design system",
+        "Suppression du chargement frontend des couches v14/v21/v22/v23/v24",
+        "Accueil décisionnel unifié, recherche globale et navigation mobile consolidés",
+        "System Center, Financial Health Score, Activity Log, feature flags et changelog intégrés",
+        "PWA renforcée avec cache versionné, détection frontend/backend et mise à jour contrôlée"
+      ]
+    },
+    {
+      "version": "2.7.0",
+      "date": "2026-09-09",
+      "title": "Consolidation UI",
+      "highlights": [
+        "Consolidation technique des couches frontend préparatoire à V3",
+        "Composants, états de chargement, erreurs et navigation harmonisés"
+      ]
+    },
+    {
+      "version": "2.6.0",
+      "date": "2026-09-09",
+      "title": "System Center",
+      "highlights": [
+        "Réglages regroupés par apparence, données, maintenance et diagnostics",
+        "Mise à jour, version, diagnostics et fonctionnalités expérimentales centralisés"
+      ]
+    },
+    {
+      "version": "2.5.0",
+      "date": "2026-09-09",
+      "title": "Financial Health",
+      "highlights": [
+        "Financial Health Score explicable par composantes",
+        "Alertes financières prioritaires et Activity Log"
+      ]
+    },
+    {
+      "version": "2.4.1",
+      "date": "2026-09-09",
+      "title": "Changelog & PWA hardening",
+      "highlights": [
+        "Changelog embarqué dans l’application",
+        "Renforcement du contrôle de version et du cache PWA"
+      ]
+    },
+    {
+      "version": "2.4.0",
+      "date": "2026-09-09",
+      "title": "Recherche & Imports intelligents",
+      "highlights": [
+        "Recherche globale transverse",
+        "Centre d’ingestion avec analyse, staging, doublons, validation et rapport final"
+      ]
+    },
+    {
+      "version": "2.3.0",
+      "date": "2026-09-09",
+      "title": "Simulation & Prévision avancée",
+      "highlights": [
+        "Scénarios achat, épargne, investissement, dépense future et solde cible",
+        "Comparaison avant/après du Safe to Spend et de la trajectoire"
+      ]
+    },
+    {
+      "version": "2.2.0",
+      "date": "2026-09-09",
+      "title": "Patrimoine & Objectifs",
+      "highlights": [
+        "Cockpit patrimonial avec actifs réels et dettes",
+        "Objectifs, effort mensuel requis et atteignabilité"
+      ]
+    },
+    {
+      "version": "2.1.0",
+      "date": "2026-09-09",
+      "title": "Decision Cockpit",
+      "highlights": [
+        "Safe to Spend unifié",
+        "Calendrier financier, tendances, qualité des données et catégorisation automatique"
+      ]
+    },
+    {
+      "version": "2.0.1",
+      "date": "2026-09-09",
+      "title": "Responsive hotfix",
+      "highlights": [
+        "Correction des débordements et du layout iPhone",
+        "Correction de cache PWA et des assets responsives"
+      ]
+    },
+    {
+      "version": "2.0.0",
+      "date": "2026-09-09",
+      "title": "Fondations V2",
+      "highlights": [
+        "Moteur financier V2, diagnostics et migration additive",
+        "Safe to Spend, tendances, qualité des données et simulation"
+      ]
+    }
+  ]
+}

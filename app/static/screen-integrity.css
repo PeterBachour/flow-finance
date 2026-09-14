@@ -1,0 +1,19 @@
+.canonical-month-stack{display:grid;gap:12px}
+.canonical-month-banner{background:linear-gradient(145deg,var(--surface),color-mix(in srgb,var(--mint) 38%,var(--surface)))}
+.canonical-month-banner .chip{pointer-events:none}
+.canonical-month-details{display:grid;gap:12px}
+.canonical-month-details .section-head{margin-bottom:0}
+.canonical-movement-notice{background:var(--surface-soft);box-shadow:none}
+.canonical-movement-notice .section-head{margin-bottom:8px}
+.canonical-movement-notice .subtle{margin:0;line-height:1.55}
+[data-canonical-suppressed="1"]{display:none!important}
+@media(max-width:720px){
+  .canonical-month-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:430px){
+  .canonical-month-stack{gap:10px}
+  .canonical-month-banner,.canonical-month-details{padding:16px}
+  .canonical-month-metrics{grid-template-columns:1fr 1fr;gap:8px}
+  .canonical-month-metrics .metric{padding:14px}
+  .canonical-month-metrics .metric strong{font-size:1.18rem}
+}

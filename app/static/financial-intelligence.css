@@ -1,0 +1,54 @@
+.fi-card{display:grid;gap:15px}
+.fi-head{align-items:flex-start;margin-bottom:0}
+.fi-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.fi-balance-btn{min-height:38px;padding:8px 11px;border:1px solid var(--line);border-radius:999px;background:var(--surface-raised);color:var(--ink);font-size:.72rem;font-weight:800;white-space:nowrap}
+.fi-status-row{display:flex;gap:8px;flex-wrap:wrap}
+.fi-freshness{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;font-size:.7rem;font-weight:800}
+.fi-freshness:before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.fi-freshness.current{background:var(--good-bg);color:var(--good)}
+.fi-freshness.pending{background:var(--surface-soft);color:var(--muted-strong)}
+.fi-freshness.stale{background:var(--warn-bg);color:var(--warn)}
+.fi-primary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.fi-primary{padding:15px;border:1px solid var(--line);border-radius:17px;background:var(--surface-raised)}
+.fi-primary.scenario{background:var(--surface-soft)}
+.fi-primary span,.fi-primary strong,.fi-primary small{display:block}
+.fi-primary span{color:var(--muted);font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.fi-primary strong{margin:7px 0 5px;font-size:1.72rem;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
+.fi-primary small{color:var(--muted);font-size:.72rem;line-height:1.45}
+.fi-metrics,.fi-current-month{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.fi-current-month{grid-template-columns:repeat(3,minmax(0,1fr))}
+.fi-metrics>div,.fi-current-month>div{padding:12px;border:1px solid var(--line);border-radius:14px}
+.fi-current-month>div{background:var(--surface-raised)}
+.fi-metrics span,.fi-metrics strong,.fi-current-month span,.fi-current-month strong{display:block}
+.fi-metrics span,.fi-current-month span{margin-bottom:5px;color:var(--muted);font-size:.68rem}
+.fi-metrics strong,.fi-current-month strong{font-size:.88rem}
+.fi-details{border-top:1px solid var(--line);padding-top:12px}
+.fi-details summary{cursor:pointer;color:var(--muted-strong);font-size:.75rem;font-weight:800}
+.fi-quality{display:flex;gap:7px;flex-wrap:wrap;padding-top:11px}
+.fi-quality span{padding:7px 9px;border-radius:999px;background:var(--surface-soft);color:var(--muted);font-size:.68rem}
+.fi-note{margin:0;padding:12px 13px;border-radius:14px;background:var(--warn-bg);color:var(--warn);font-size:.75rem;line-height:1.5}
+.fi-balance-dialog{width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:0;border:0;background:transparent}
+.fi-balance-dialog::backdrop{background:rgba(3,14,24,.52);backdrop-filter:blur(5px)}
+.fi-balance-panel{position:fixed;right:0;bottom:0;left:0;display:grid;gap:14px;width:min(100%,560px);margin:0 auto;padding:21px max(18px,env(safe-area-inset-right)) calc(22px + env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));border-radius:28px 28px 0 0;background:var(--surface);color:var(--ink);box-shadow:0 -18px 50px rgba(0,0,0,.18)}
+.fi-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.fi-dialog-head h2{margin:2px 0 0;font-size:1.45rem}
+.fi-dialog-close{width:38px;height:38px;border:0;border-radius:50%;background:var(--surface-soft);color:var(--ink);font-size:1.2rem}
+.fi-dialog-copy{margin:0;color:var(--muted);font-size:.78rem;line-height:1.55}
+.fi-field{display:grid;gap:7px}
+.fi-field>span{color:var(--muted-strong);font-size:.76rem;font-weight:800}
+.fi-field input,.fi-field select{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface-raised);color:var(--ink);font:inherit}
+.fi-file input{padding:10px}
+.fi-money-input{position:relative}
+.fi-money-input input{padding-right:38px}
+.fi-money-input b{position:absolute;top:50%;right:14px;transform:translateY(-50%);font-size:.9rem}
+.fi-form-status{min-height:18px;margin:0;color:var(--muted);font-size:.75rem}
+.fi-submit{min-height:48px;border:0;border-radius:14px;background:var(--midnight);color:#fff;font-size:.84rem;font-weight:850}
+.fi-submit:disabled{opacity:.55}
+@media(max-width:430px){
+  .fi-head{display:grid;gap:9px}
+  .fi-actions{justify-content:flex-start}
+  .fi-primary-grid{grid-template-columns:1fr}
+  .fi-primary strong{font-size:1.55rem}
+  .fi-current-month{grid-template-columns:1fr 1fr}
+  .fi-current-month>div:last-child{grid-column:1/-1}
+}
