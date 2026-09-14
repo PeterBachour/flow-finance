@@ -42,5 +42,5 @@ def test_v57_action_center_contract_is_loaded_and_read_only():
 def test_v57_release_is_first_in_exposed_changelog():
     data = changelog()
     assert data['releases'][0]['version'] == '6.1.0'
-    assert data['releases'][0]['title'] == 'Flow V6.0 — Confiance documentaire'
+    assert data['releases'][0]['title'] == 'Flow V6.1 — Safe to Spend certifié'
     assert data['releases'][0]['highlights']
