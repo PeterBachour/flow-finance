@@ -1,6 +1,6 @@
 import sqlite3
 
-from app.imports import apply_rule_to_inbox, ensure_import_schema, import_review_groups, import_rows, make_fingerprint, normalize_label, parse_csv_bytes
+from app.imports import apply_rule_to_inbox, ensure_import_schema, import_review_groups, import_rows, make_fingerprint, normalize_label, parse_csv_bytes, preview_rule_impact
 
 
 def db():
@@ -73,3 +73,26 @@ def test_review_groups_expose_total_and_repeated_labels():
     assert group['volume_cents'] == 3434
     assert group['first_seen'] == '2026-09-08'
     assert group['last_seen'] == '2026-09-09'
+
+
+def test_rule_preview_matches_the_same_pending_scope_as_rule_application():
+    conn = db()
+    rows = [
+        {'booking_date':'2026-09-08','amount_cents':-1234,'label':'CB MONOPRIX','raw':{}},
+        {'booking_date':'2026-09-09','amount_cents':-2200,'label':'CB MONOPRIX PARIS','raw':{}},
+        {'booking_date':'2026-09-10','amount_cents':500,'label':'CB MONOPRIX REMBOURSEMENT','raw':{}},
+        {'booking_date':'2026-09-11','amount_cents':-600,'label':'COTISATION CARTE','raw':{}},
+    ]
+    import_rows(conn, 1, 1, rows)
+
+    preview = preview_rule_impact(conn, 'CB MONOPRIX')
+
+    assert preview == {
+        'pattern': 'CB MONOPRIX',
+        'affected_count': 3,
+        'debit_cents': 3434,
+        'credit_cents': 500,
+        'first_seen': '2026-09-08',
+        'last_seen': '2026-09-10',
+    }
+    assert apply_rule_to_inbox(conn, 'CB MONOPRIX', 'Alimentation', 'expense') == preview['affected_count']
