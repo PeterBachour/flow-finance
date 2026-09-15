@@ -17,6 +17,7 @@ from .imports import (
     apply_rule_to_inbox,
     ensure_import_schema,
     evaluate_import_quality,
+    import_review_groups,
     normalize_label,
     parse_statement,
     refresh_review_counts,
@@ -240,6 +241,16 @@ def list_imports(limit: int = 20):
             (limit,),
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+
+@router.get('/api/imports/inbox/groups')
+def import_inbox_groups(limit: int = 100):
+    limit = min(max(limit, 1), 200)
+    with connection() as conn:
+        ensure_import_schema(conn)
+        ensure_identity_schema(conn)
+        return import_review_groups(conn, limit)
 
 
 @router.get('/api/imports/inbox')
