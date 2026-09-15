@@ -126,6 +126,7 @@ def analyze_records(records: list[StatementRecord]) -> dict:
 
         if (
             touches_staged
+            and following_start == expected_start
             and current.closing_balance_cents is not None
             and following.opening_balance_cents is not None
             and current.closing_balance_cents != following.opening_balance_cents
