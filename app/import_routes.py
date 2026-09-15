@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from .bulk_import import commit_batch, ensure_bulk_schema, stage_document
@@ -19,6 +19,7 @@ from .imports import (
     evaluate_import_quality,
     import_review_groups,
     normalize_label,
+    preview_rule_impact,
     parse_statement,
     refresh_review_counts,
     statement_metadata,
@@ -242,6 +243,15 @@ def list_imports(limit: int = 20):
         ).fetchall()
     return [dict(r) for r in rows]
 
+
+
+
+@router.get('/api/imports/inbox/rule-preview')
+def import_rule_preview(pattern: str = Query(min_length=1, max_length=180)):
+    with connection() as conn:
+        ensure_import_schema(conn)
+        ensure_identity_schema(conn)
+        return preview_rule_impact(conn, pattern)
 
 
 @router.get('/api/imports/inbox/groups')
