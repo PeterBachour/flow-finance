@@ -1,5 +1,5 @@
 (()=>{
-  let activeBatch=null;
+  let activeBatch=null,activePreflight=null;
   const euroLocal=c=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format((c||0)/100);
   const apiBulk=async(url,opts={})=>{const r=await fetch(url,opts);if(!r.ok)throw new Error((await r.text())||r.status);return r.json()};
   const escBulk=v=>{const d=document.createElement('div');d.textContent=v??'';return d.innerHTML};
@@ -70,7 +70,7 @@
       unknown:docs.filter(d=>d.document_type==='unknown').length,
       warning:docs.filter(d=>d.status==='warning'||d.warning).length,
     };
-    const preflight=data.preflight||null;
+    const preflight=data.preflight||null;activePreflight=preflight;
     const root=document.querySelector('#bulkReview');
     root.innerHTML=`
       <div class="bulk-summary">
@@ -78,7 +78,7 @@
       </div>
       ${renderPreflight(preflight)}
       <div class="bulk-documents">${docs.map(doc=>`<article class="bulk-doc ${doc.warning?'has-warning':''}"><div class="bulk-doc-main"><span class="bulk-type">${docLabel(doc.document_type)}</span><strong>${escBulk(doc.filename)}</strong><small>${doc.period?escBulk(doc.period):'Période non détectée'} · ${moneySummary(doc)}</small>${doc.warning?`<small class="bulk-warning">${escBulk(doc.warning)}</small>`:''}</div><span class="bulk-state">${doc.status==='ready'?'Prêt':doc.status==='committed'?'Importé':doc.status==='duplicate'?'Doublon':'À vérifier'}</span></article>`).join('')}</div>
-      <div class="bulk-actions"><button id="bulkDiscard" class="ghost">Abandonner</button><button id="bulkCommit" class="primary" ${docs.some(d=>d.document_type==='statement'||(d.document_type==='payroll'&&d.status==='ready'))&&preflight?.can_commit!==false?'':'disabled'}>Valider le lot</button></div>`;
+      <div class="bulk-actions"><button id="bulkDiscard" class="ghost">Abandonner</button><button id="bulkCommit" class="primary" ${docs.some(d=>d.document_type==='statement'||(d.document_type==='payroll'&&d.status==='ready'))&&preflight?.can_commit!==false?'':'disabled'}>${preflight?.requires_confirmation?'Confirmer et importer':'Valider le lot'}</button></div>`;
     document.querySelector('#bulkCommit')?.addEventListener('click',commitBatch);
     document.querySelector('#bulkDiscard')?.addEventListener('click',discardBatch);
   }
@@ -97,14 +97,14 @@
   async function commitBatch(){
     if(!activeBatch)return;
     const button=document.querySelector('#bulkCommit'),status=document.querySelector('#bulkStatus');button.disabled=true;status.textContent='Validation du lot…';
-    try{const result=await apiBulk(`/api/imports/bulk/${activeBatch}/commit`,{method:'POST'});status.textContent=`Import terminé · ${result.statements} relevé(s) · ${result.payrolls} fiche(s) de paie · ${result.transactions} transaction(s) · ${result.duplicates} doublon(s)${result.warnings_skipped?` · ${result.warnings_skipped} document(s) ignoré(s)`:''}`;const data=await apiBulk(`/api/imports/bulk/${activeBatch}`);renderBatch(data);await Promise.allSettled([window.loadAll?.(),window.populateImportUi?.()])}
+    try{const confirmation=activePreflight?.requires_confirmation?'?confirm_warnings=true':'';const result=await apiBulk(`/api/imports/bulk/${activeBatch}/commit${confirmation}`,{method:'POST'});status.textContent=`Import terminé · ${result.statements} relevé(s) · ${result.payrolls} fiche(s) de paie · ${result.transactions} transaction(s) · ${result.duplicates} doublon(s)${result.warnings_skipped?` · ${result.warnings_skipped} document(s) ignoré(s)`:''}`;const data=await apiBulk(`/api/imports/bulk/${activeBatch}`);renderBatch(data);await Promise.allSettled([window.loadAll?.(),window.populateImportUi?.()])}
     catch(err){status.textContent=`Validation impossible : ${err.message}`;button.disabled=false}
   }
 
   async function discardBatch(){
     if(!activeBatch)return;
     const status=document.querySelector('#bulkStatus');
-    try{await apiBulk(`/api/imports/bulk/${activeBatch}`,{method:'DELETE'});activeBatch=null;document.querySelector('#bulkReview').innerHTML='';document.querySelector('#bulkImportForm').reset();document.querySelector('#bulkSelection').textContent='Aucun fichier sélectionné';status.textContent='Lot abandonné. Aucune donnée n’a été importée.'}
+    try{await apiBulk(`/api/imports/bulk/${activeBatch}`,{method:'DELETE'});activeBatch=null;activePreflight=null;document.querySelector('#bulkReview').innerHTML='';document.querySelector('#bulkImportForm').reset();document.querySelector('#bulkSelection').textContent='Aucun fichier sélectionné';status.textContent='Lot abandonné. Aucune donnée n’a été importée.'}
     catch(err){status.textContent=`Abandon impossible : ${err.message}`}
   }
 

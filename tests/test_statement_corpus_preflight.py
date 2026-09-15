@@ -1,3 +1,5 @@
+from fastapi import HTTPException
+
 from app.main import app
 from app.statement_corpus_preflight import StatementRecord, analyze_records
 
@@ -81,3 +83,47 @@ def test_guarded_commit_route_is_registered_before_legacy_commit_route():
 def test_preflight_route_is_exposed():
     paths = {route.path for route in app.routes}
     assert '/api/imports/bulk/{batch_id}/preflight' in paths
+
+
+def test_guarded_commit_requires_explicit_gap_confirmation(monkeypatch):
+    from app import statement_corpus_routes as routes
+
+    class Context:
+        def __enter__(self):
+            return object()
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+    monkeypatch.setattr(routes, 'connection', lambda: Context())
+    monkeypatch.setattr(routes, 'ensure_bulk_schema', lambda conn: None)
+    monkeypatch.setattr(
+        routes,
+        'build_batch_preflight',
+        lambda conn, batch_id: {
+            'can_commit': True,
+            'requires_confirmation': True,
+            'issues': [{'type': 'period_gap', 'severity': 'warning'}],
+        },
+    )
+    commit_called = False
+
+    def commit(conn, batch_id):
+        nonlocal commit_called
+        commit_called = True
+        return {}
+
+    monkeypatch.setattr(routes, 'commit_batch', commit)
+
+    try:
+        routes.guarded_bulk_commit(12)
+    except HTTPException as exc:
+        assert exc.status_code == 409
+        assert exc.detail['code'] == 'confirmation_required'
+    else:
+        raise AssertionError('Missing gap confirmation must block the commit')
+
+    assert commit_called is False
+    result = routes.guarded_bulk_commit(12, confirm_warnings=True)
+    assert result['ok'] is True
+    assert commit_called is True

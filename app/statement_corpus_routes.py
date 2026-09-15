@@ -18,7 +18,7 @@ def bulk_preflight(batch_id: int):
 
 
 @router.post('/api/imports/bulk/{batch_id}/commit')
-def guarded_bulk_commit(batch_id: int):
+def guarded_bulk_commit(batch_id: int, confirm_warnings: bool = False):
     with connection() as conn:
         ensure_bulk_schema(conn)
         try:
@@ -30,6 +30,15 @@ def guarded_bulk_commit(batch_id: int):
                 409,
                 detail={
                     'message': 'Validation bloquée par le contrôle de continuité des relevés.',
+                    'preflight': preflight,
+                },
+            )
+        if preflight['requires_confirmation'] and not confirm_warnings:
+            raise HTTPException(
+                409,
+                detail={
+                    'code': 'confirmation_required',
+                    'message': 'Des périodes sont manquantes. Confirme explicitement pour importer ce lot incomplet.',
                     'preflight': preflight,
                 },
             )
