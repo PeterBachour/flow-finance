@@ -325,7 +325,7 @@ def commit_batch(conn, batch_id: int) -> dict:
         raise ValueError('Lot déjà validé')
     account_id = batch['account_id']
     docs = conn.execute("SELECT * FROM bulk_import_documents WHERE batch_id=? AND status IN ('ready','warning') ORDER BY id", (batch_id,)).fetchall()
-    result = {'statements': 0, 'payrolls': 0, 'transactions': 0, 'duplicates': 0, 'warnings_skipped': 0}
+    result = {'statements': 0, 'payrolls': 0, 'transactions': 0, 'duplicates': 0, 'review': 0, 'auto_classified': 0, 'warnings_skipped': 0}
     for doc in docs:
         payload = json.loads(doc['payload_json'] or '{}')
         if doc['document_type'] == 'statement':
@@ -351,6 +351,8 @@ def commit_batch(conn, batch_id: int) -> dict:
             result['statements'] += 1
             result['transactions'] += imported['imported']
             result['duplicates'] += imported['duplicates']
+            result['review'] += imported['review']
+            result['auto_classified'] += imported['auto_classified']
         elif doc['document_type'] == 'payroll':
             if not payload.get('period') or payload.get('net_paid_cents') is None:
                 result['warnings_skipped'] += 1
