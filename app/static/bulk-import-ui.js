@@ -43,6 +43,24 @@
 
   function docLabel(type){return {statement:'Relevé bancaire',payroll:'Fiche de paie',unknown:'Inconnu',duplicate:'Doublon'}[type]||type}
 
+  function preflightLabel(issue){
+    if(issue.type==='period_gap')return `Période manquante du ${issue.missing_start} au ${issue.missing_end}`;
+    if(issue.type==='period_overlap')return `Chevauchement entre ${issue.after_file} et ${issue.before_file}`;
+    if(issue.type==='balance_discontinuity')return `Écart de solde entre ${issue.after_file} et ${issue.before_file} : ${euroLocal(issue.difference_cents)}`;
+    if(issue.type==='parse_error')return `${issue.file} : ${issue.detail}`;
+    return issue.type||'Contrôle à vérifier';
+  }
+
+  function renderPreflight(preflight){
+    if(!preflight)return '';
+    const tone=preflight.can_commit?(preflight.requires_confirmation?'has-warning':''):'has-warning';
+    const title=preflight.can_commit
+      ?(preflight.requires_confirmation?'Continuité à confirmer':'Continuité des relevés validée')
+      :'Validation bloquée';
+    const issues=(preflight.issues||[]).map(issue=>`<li><strong>${issue.severity==='blocking'?'Bloquant':'Attention'}</strong> · ${escBulk(preflightLabel(issue))}</li>`).join('');
+    return `<section class="bulk-doc ${tone}" aria-live="polite"><div class="bulk-doc-main"><span class="bulk-type">Contrôle de continuité</span><strong>${title}</strong><small>${preflight.statement_count||0} relevé(s) · ${preflight.coverage_start||'début inconnu'} au ${preflight.coverage_end||'fin inconnue'}</small>${issues?`<ul class="bulk-warning">${issues}</ul>`:''}</div></section>`;
+  }
+
   function renderBatch(data){
     activeBatch=data.batch_id||data.batch?.id||activeBatch;
     const docs=data.documents||[];
@@ -52,13 +70,15 @@
       unknown:docs.filter(d=>d.document_type==='unknown').length,
       warning:docs.filter(d=>d.status==='warning'||d.warning).length,
     };
+    const preflight=data.preflight||null;
     const root=document.querySelector('#bulkReview');
     root.innerHTML=`
       <div class="bulk-summary">
         <span><strong>${docs.length}</strong> fichiers</span><span><strong>${counts.statement||0}</strong> relevés</span><span><strong>${counts.payroll||0}</strong> paies</span><span class="${(counts.warning||0)>0?'warn':''}"><strong>${counts.warning||0}</strong> alertes</span>
       </div>
+      ${renderPreflight(preflight)}
       <div class="bulk-documents">${docs.map(doc=>`<article class="bulk-doc ${doc.warning?'has-warning':''}"><div class="bulk-doc-main"><span class="bulk-type">${docLabel(doc.document_type)}</span><strong>${escBulk(doc.filename)}</strong><small>${doc.period?escBulk(doc.period):'Période non détectée'} · ${moneySummary(doc)}</small>${doc.warning?`<small class="bulk-warning">${escBulk(doc.warning)}</small>`:''}</div><span class="bulk-state">${doc.status==='ready'?'Prêt':doc.status==='committed'?'Importé':doc.status==='duplicate'?'Doublon':'À vérifier'}</span></article>`).join('')}</div>
-      <div class="bulk-actions"><button id="bulkDiscard" class="ghost">Abandonner</button><button id="bulkCommit" class="primary" ${docs.some(d=>d.document_type==='statement'||(d.document_type==='payroll'&&d.status==='ready'))?'':'disabled'}>Valider le lot</button></div>`;
+      <div class="bulk-actions"><button id="bulkDiscard" class="ghost">Abandonner</button><button id="bulkCommit" class="primary" ${docs.some(d=>d.document_type==='statement'||(d.document_type==='payroll'&&d.status==='ready'))&&preflight?.can_commit!==false?'':'disabled'}>Valider le lot</button></div>`;
     document.querySelector('#bulkCommit')?.addEventListener('click',commitBatch);
     document.querySelector('#bulkDiscard')?.addEventListener('click',discardBatch);
   }
