@@ -31,7 +31,7 @@ def test_contiguous_chain_is_ready():
 def test_gap_is_warning_but_does_not_block_commit():
     result = analyze_records([
         record('jan.pdf', '2026-01-01', '2026-01-31', 100_00, 150_00),
-        record('mar.pdf', '2026-03-01', '2026-03-31', 150_00, 120_00, staged=True, source_id=2),
+        record('mar.pdf', '2026-03-01', '2026-03-31', 175_00, 120_00, staged=True, source_id=2),
     ])
     assert result['status'] == 'warning'
     assert result['can_commit'] is True
@@ -39,6 +39,7 @@ def test_gap_is_warning_but_does_not_block_commit():
     assert result['issues'][0]['type'] == 'period_gap'
     assert result['issues'][0]['missing_start'] == '2026-02-01'
     assert result['issues'][0]['missing_end'] == '2026-02-28'
+    assert not any(issue['type'] == 'balance_discontinuity' for issue in result['issues'])
 
 
 def test_overlap_blocks_commit():
