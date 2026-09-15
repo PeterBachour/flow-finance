@@ -82,3 +82,16 @@ def test_bulk_import_ui_exposes_continuity_and_blocks_invalid_commit():
     assert 'Contrôle de continuité' in script
     assert 'Validation bloquée' in script
     assert "preflight?.can_commit!==false" in script
+
+
+def test_bulk_commit_reports_review_workload_in_api_and_ui():
+    root = Path(__file__).resolve().parents[1]
+    service = (root / 'app' / 'bulk_import.py').read_text(encoding='utf-8')
+    script = (root / 'app' / 'static' / 'bulk-import-ui.js').read_text(encoding='utf-8')
+
+    assert "'review': 0" in service
+    assert "'auto_classified': 0" in service
+    assert "result['review'] += imported['review']" in service
+    assert "result['auto_classified'] += imported['auto_classified']" in service
+    assert 'classée(s) automatiquement' in script
+    assert 'à revoir' in script
