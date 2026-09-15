@@ -97,7 +97,7 @@
   async function commitBatch(){
     if(!activeBatch)return;
     const button=document.querySelector('#bulkCommit'),status=document.querySelector('#bulkStatus');button.disabled=true;status.textContent='Validation du lot…';
-    try{const confirmation=activePreflight?.requires_confirmation?'?confirm_warnings=true':'';const result=await apiBulk(`/api/imports/bulk/${activeBatch}/commit${confirmation}`,{method:'POST'});status.textContent=`Import terminé · ${result.statements} relevé(s) · ${result.payrolls} fiche(s) de paie · ${result.transactions} transaction(s) · ${result.duplicates} doublon(s)${result.warnings_skipped?` · ${result.warnings_skipped} document(s) ignoré(s)`:''}`;const data=await apiBulk(`/api/imports/bulk/${activeBatch}`);renderBatch(data);await Promise.allSettled([window.loadAll?.(),window.populateImportUi?.()])}
+    try{const confirmation=activePreflight?.requires_confirmation?'?confirm_warnings=true':'';const result=await apiBulk(`/api/imports/bulk/${activeBatch}/commit${confirmation}`,{method:'POST'});status.textContent=`Import terminé · ${result.statements} relevé(s) · ${result.payrolls} fiche(s) de paie · ${result.transactions} transaction(s) · ${result.auto_classified||0} classée(s) automatiquement · ${result.review||0} à revoir · ${result.duplicates} doublon(s)${result.warnings_skipped?` · ${result.warnings_skipped} document(s) ignoré(s)`:''}`;const data=await apiBulk(`/api/imports/bulk/${activeBatch}`);renderBatch(data);await Promise.allSettled([window.loadAll?.(),window.populateImportUi?.()])}
     catch(err){status.textContent=`Validation impossible : ${err.message}`;button.disabled=false}
   }
 
