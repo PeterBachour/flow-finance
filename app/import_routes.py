@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -177,7 +178,6 @@ def bulk_batch(batch_id: int):
         if not batch:
             raise HTTPException(404, 'Lot introuvable')
         docs = conn.execute('SELECT id,filename,document_type,period,status,warning,summary_json,committed_entity_id FROM bulk_import_documents WHERE batch_id=? ORDER BY id', (batch_id,)).fetchall()
-    import json
         preflight = build_batch_preflight(conn, batch_id)
     return {'batch': dict(batch), 'documents': [{**dict(row), 'summary': json.loads(row['summary_json'] or '{}')} for row in docs], 'preflight': preflight}
 
