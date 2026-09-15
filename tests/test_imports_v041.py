@@ -1,6 +1,6 @@
 import sqlite3
 
-from app.imports import apply_rule_to_inbox, ensure_import_schema, import_rows, make_fingerprint, normalize_label, parse_csv_bytes
+from app.imports import apply_rule_to_inbox, ensure_import_schema, import_review_groups, import_rows, make_fingerprint, normalize_label, parse_csv_bytes
 
 
 def db():
@@ -50,3 +50,26 @@ def test_fingerprint_ignores_card_execution_date_suffix():
     a = make_fingerprint(1,'2026-09-08',-1000,'CB TEST 07/09/26')
     b = make_fingerprint(1,'2026-09-08',-1000,'CB TEST')
     assert a == b
+
+
+def test_review_groups_expose_total_and_repeated_labels():
+    conn = db()
+    rows = [
+        {'booking_date':'2026-09-08','amount_cents':-1234,'label':'CB MONOPRIX','raw':{}},
+        {'booking_date':'2026-09-09','amount_cents':-2200,'label':'CB MONOPRIX PARIS','raw':{}},
+        {'booking_date':'2026-09-10','amount_cents':-600,'label':'COTISATION CARTE','raw':{}},
+    ]
+    result = import_rows(conn, 1, 1, rows)
+    assert result['review'] == 3
+
+    summary = import_review_groups(conn)
+
+    assert summary['total_pending'] == 3
+    assert summary['grouped_pending'] == 2
+    assert len(summary['groups']) == 1
+    group = summary['groups'][0]
+    assert group['normalized_label'] == 'CB MONOPRIX'
+    assert group['occurrence_count'] == 2
+    assert group['volume_cents'] == 3434
+    assert group['first_seen'] == '2026-09-08'
+    assert group['last_seen'] == '2026-09-09'
