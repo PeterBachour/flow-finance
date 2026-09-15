@@ -51,7 +51,16 @@ async function handleReview(button,withRule=false){
   const card=button.closest('[data-review-id]'),category=card.querySelector('.review-category').value;
   if(!category){alert('Choisis une catégorie.');return}
   let rulePattern=null;
-  if(withRule){rulePattern=prompt('Motif à reconnaître automatiquement à l’avenir',card.dataset.normalized||'');if(rulePattern===null)return;rulePattern=rulePattern.trim();if(!rulePattern){alert('Le motif ne peut pas être vide.');return}}
+  if(withRule){
+    rulePattern=prompt('Motif à reconnaître automatiquement à l’avenir',card.dataset.normalized||'');
+    if(rulePattern===null)return;
+    rulePattern=rulePattern.trim();
+    if(!rulePattern){alert('Le motif ne peut pas être vide.');return}
+    const preview=await importApi(`/api/imports/inbox/rule-preview?pattern=${encodeURIComponent(rulePattern)}`);
+    if(!preview.affected_count){alert('Cette règle ne correspond plus à aucune opération en attente.');await loadImportInbox();return}
+    const impact=`${preview.affected_count} opération(s) seront classées · débits ${euro(preview.debit_cents)} · crédits ${euro(preview.credit_cents)} · ${shortDate(preview.first_seen)} → ${shortDate(preview.last_seen)}.`;
+    if(!confirm(`${impact}\n\nCréer et appliquer cette règle ?`))return;
+  }
   button.disabled=true;
   try{const result=await importApi(`/api/imports/inbox/${card.dataset.reviewId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({category,create_rule:withRule,rule_pattern:rulePattern})});const status=document.querySelector('#importStatus');if(withRule&&result.auto_classified>0)status.textContent=`Règle créée · ${result.auto_classified} autre(s) opération(s) classée(s) automatiquement.`;await Promise.all([loadImportInbox(),loadImportHistory(),loadMovements(document.querySelector('#movementSearch').value),loadRecurringSuggestions()])}catch(e){alert(`Validation impossible : ${e.message}`);button.disabled=false}
 }
