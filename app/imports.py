@@ -358,6 +358,37 @@ def import_review_groups(conn, limit: int = 100) -> dict:
     }
 
 
+
+def preview_rule_impact(conn, pattern: str) -> dict:
+    normalized = normalize_label(pattern)
+    if not normalized:
+        return {
+            'pattern': '',
+            'affected_count': 0,
+            'debit_cents': 0,
+            'credit_cents': 0,
+            'first_seen': None,
+            'last_seen': None,
+        }
+    escaped = normalized.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+    row = conn.execute(
+        """
+        SELECT COUNT(*) affected_count,
+               COALESCE(SUM(CASE WHEN t.amount_cents<0 THEN -t.amount_cents ELSE 0 END),0) debit_cents,
+               COALESCE(SUM(CASE WHEN t.amount_cents>0 THEN t.amount_cents ELSE 0 END),0) credit_cents,
+               MIN(t.booking_date) first_seen,
+               MAX(t.booking_date) last_seen
+        FROM transaction_import_meta m
+        JOIN transactions t ON t.id=m.transaction_id
+        WHERE m.review_status='needs_review'
+          AND m.normalized_label LIKE ? ESCAPE '\\'
+        """,
+        (f'%{escaped}%',),
+    ).fetchone()
+    return {'pattern': normalized, **dict(row)}
+
+
+
 def apply_rule_to_inbox(conn, pattern: str, category: str, tx_type: str) -> int:
     normalized_pattern = normalize_label(pattern)
     if not normalized_pattern:
