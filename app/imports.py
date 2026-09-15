@@ -324,6 +324,40 @@ def accept_categorized_import_reviews(
     return len(transaction_ids_to_accept)
 
 
+
+def import_review_groups(conn, limit: int = 100) -> dict:
+    total_pending = conn.execute(
+        "SELECT COUNT(*) total FROM transaction_import_meta WHERE review_status='needs_review'"
+    ).fetchone()['total']
+    rows = conn.execute(
+        """
+        SELECT m.normalized_label,
+               COUNT(*) occurrence_count,
+               SUM(t.amount_cents) net_amount_cents,
+               SUM(ABS(t.amount_cents)) volume_cents,
+               MIN(t.booking_date) first_seen,
+               MAX(t.booking_date) last_seen,
+               MIN(t.id) sample_transaction_id,
+               MIN(t.label) sample_label
+        FROM transaction_import_meta m
+        JOIN transactions t ON t.id=m.transaction_id
+        WHERE m.review_status='needs_review'
+          AND TRIM(COALESCE(m.normalized_label,''))<>''
+        GROUP BY m.normalized_label
+        HAVING COUNT(*)>1
+        ORDER BY occurrence_count DESC,volume_cents DESC,m.normalized_label
+        LIMIT ?
+        """,
+        (limit,),
+    ).fetchall()
+    groups = [dict(row) for row in rows]
+    return {
+        'total_pending': int(total_pending),
+        'grouped_pending': sum(int(row['occurrence_count']) for row in groups),
+        'groups': groups,
+    }
+
+
 def apply_rule_to_inbox(conn, pattern: str, category: str, tx_type: str) -> int:
     normalized_pattern = normalize_label(pattern)
     if not normalized_pattern:
