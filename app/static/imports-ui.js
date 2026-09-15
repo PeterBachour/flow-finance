@@ -25,12 +25,19 @@ async function loadImportHistory(){
 
 async function loadImportInbox(){
   const root=document.querySelector('#importInbox');if(!root)return;
-  const rows=await importApi('/api/imports/inbox?limit=100');
-  document.querySelector('#inboxCount').textContent=rows.length?`${rows.length} à revoir`:'À jour';
-  root.innerHTML=rows.length?rows.map(r=>{
-    const options='<option value="">Choisir une catégorie</option>'+importCategories.map(c=>`<option value="${attrEsc(c.name)}">${esc(c.name)}</option>`).join('');
-    return `<article class="review-card" data-review-id="${r.id}" data-normalized="${attrEsc(r.normalized_label)}"><div class="review-head"><div><time>${shortDate(r.booking_date)}</time><strong>${esc(r.label)}</strong><small>${esc(r.account_name)}</small></div><div class="value ${r.amount_cents>0?'positive':''}">${r.amount_cents>0?'+':''}${euro(r.amount_cents)}</div></div><select class="review-category">${options}</select><div class="review-actions"><button class="review-accept">Valider</button><button class="review-rule primary">Valider + règle</button><button class="review-ignore ghost">Ignorer</button></div></article>`;
-  }).join(''):'<div class="empty">Aucune opération à vérifier.</div>';
+  const [rows,summary]=await Promise.all([
+    importApi('/api/imports/inbox?limit=100'),
+    importApi('/api/imports/inbox/groups?limit=100'),
+  ]);
+  const groups=summary.groups||[],groupLabels=new Set(groups.map(group=>group.normalized_label));
+  const singles=rows.filter(row=>!groupLabels.has(row.normalized_label));
+  document.querySelector('#inboxCount').textContent=summary.total_pending
+    ?`${summary.total_pending} à revoir · ${groups.length} groupe${groups.length>1?'s':''}`
+    :'À jour';
+  const options=()=>'<option value="">Choisir une catégorie</option>'+importCategories.map(c=>`<option value="${attrEsc(c.name)}">${esc(c.name)}</option>`).join('');
+  const grouped=groups.map(group=>`<article class="review-card grouped-review" data-review-id="${group.sample_transaction_id}" data-normalized="${attrEsc(group.normalized_label)}"><div class="review-head"><div><span class="bulk-type">Groupe de ${group.occurrence_count} opérations</span><strong>${esc(group.normalized_label)}</strong><small>${shortDate(group.first_seen)} → ${shortDate(group.last_seen)} · volume ${euro(group.volume_cents)}</small></div><div class="value ${group.net_amount_cents>0?'positive':''}">${group.net_amount_cents>0?'+':''}${euro(group.net_amount_cents)}</div></div><select class="review-category">${options()}</select><div class="review-actions"><button class="review-rule primary">Valider le groupe + règle</button></div></article>`).join('');
+  const individual=singles.map(row=>`<article class="review-card" data-review-id="${row.id}" data-normalized="${attrEsc(row.normalized_label)}"><div class="review-head"><div><time>${shortDate(row.booking_date)}</time><strong>${esc(row.label)}</strong><small>${esc(row.account_name)}</small></div><div class="value ${row.amount_cents>0?'positive':''}">${row.amount_cents>0?'+':''}${euro(row.amount_cents)}</div></div><select class="review-category">${options()}</select><div class="review-actions"><button class="review-accept">Valider</button><button class="review-rule primary">Valider + règle</button><button class="review-ignore ghost">Ignorer</button></div></article>`).join('');
+  root.innerHTML=summary.total_pending?(grouped+individual):'<div class="empty">Aucune opération à vérifier.</div>';
 }
 
 async function loadRecurringSuggestions(){
