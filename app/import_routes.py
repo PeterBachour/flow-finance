@@ -11,6 +11,7 @@ from .import_identity import (
     import_rows_occurrence_safe,
     statement_fingerprint,
 )
+from .statement_corpus_preflight import build_batch_preflight
 from .imports import (
     apply_rule_to_inbox,
     ensure_import_schema,
@@ -164,7 +165,8 @@ async def bulk_analyze(account_id: int = Form(...), files: list[UploadFile] = Fi
                 counts['warning'] += 1
         conn.execute('''UPDATE bulk_import_batches SET statement_files=?,payroll_files=?,unknown_files=?,warning_files=? WHERE id=?''',
                      (counts['statement'], counts['payroll'], counts['unknown'], counts['warning'], batch_id))
-    return {'batch_id': batch_id, 'status': 'staging', 'counts': counts, 'documents': documents}
+        preflight = build_batch_preflight(conn, batch_id)
+    return {'batch_id': batch_id, 'status': 'staging', 'counts': counts, 'documents': documents, 'preflight': preflight}
 
 
 @router.get('/api/imports/bulk/{batch_id}')
@@ -176,7 +178,8 @@ def bulk_batch(batch_id: int):
             raise HTTPException(404, 'Lot introuvable')
         docs = conn.execute('SELECT id,filename,document_type,period,status,warning,summary_json,committed_entity_id FROM bulk_import_documents WHERE batch_id=? ORDER BY id', (batch_id,)).fetchall()
     import json
-    return {'batch': dict(batch), 'documents': [{**dict(row), 'summary': json.loads(row['summary_json'] or '{}')} for row in docs]}
+        preflight = build_batch_preflight(conn, batch_id)
+    return {'batch': dict(batch), 'documents': [{**dict(row), 'summary': json.loads(row['summary_json'] or '{}')} for row in docs], 'preflight': preflight}
 
 
 @router.post('/api/imports/bulk/{batch_id}/commit')
@@ -184,7 +187,18 @@ def bulk_commit(batch_id: int):
     with connection() as conn:
         ensure_bulk_schema(conn)
         try:
+            preflight = build_batch_preflight(conn, batch_id)
+            if not preflight['can_commit']:
+                raise HTTPException(
+                    409,
+                    detail={
+                        'message': 'Validation bloquée par une incohérence entre les relevés.',
+                        'preflight': preflight,
+                    },
+                )
             result = commit_batch(conn, batch_id)
+        except HTTPException:
+            raise
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
         except Exception as exc:
