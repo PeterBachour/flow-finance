@@ -22,7 +22,27 @@ def certified_safe_to_spend(as_of: date | None = None, horizon_days: int | None 
 @router.get('/safe-to-spend/explanation')
 def safe_to_spend_explanation(as_of: date | None = None, horizon_days: int | None = Query(default=None, ge=0, le=366)):
     with connection() as conn:
-        return build_safe_to_spend_explanation(conn, as_of=as_of, horizon_days=horizon_days)
+        result = build_certified_safe_to_spend(conn, as_of=as_of, horizon_days=horizon_days)
+    components = result.get('components', {})
+    calculated = result.get('safe_to_spend', {}).get('calculated_cents')
+    total = result.get('safe_to_spend', {}).get('total_cents')
+    return {
+        'schema_version': result.get('schema_version', '6.1'),
+        'as_of': result.get('as_of'),
+        'status': result.get('availability', {}).get('status'),
+        'summary': {
+            'text': 'Le montant dépensable est calculé après déduction des échéances, charges récurrentes et de la marge de sécurité.',
+            'safe_to_spend_cents': total,
+            'calculated_cents': calculated,
+        },
+        'formula': result.get('safe_to_spend', {}).get('formula'),
+        'components': components,
+        'breakdown': result.get('breakdown', []),
+        'projections': result.get('projections', {}),
+        'confidence': result.get('confidence', {}),
+        'controls': result.get('controls', {}),
+        'read_only': True,
+    }
 
 
 @router.get('/trajectory')
