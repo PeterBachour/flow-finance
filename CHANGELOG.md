@@ -1,3 +1,9 @@
+## 6.4.3 - 2026-09-17
+
+- Correction de la carte Prévision vérifiée sur mobile.
+- Libellés et montants désormais lisibles sans retours ligne artificiels.
+- Cache PWA renouvelé.
+
 ## 6.4.2 - 2026-09-17
 
 - Passe visuelle responsive complète du shell actif.
