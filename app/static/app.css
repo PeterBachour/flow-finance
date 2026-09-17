@@ -210,7 +210,7 @@ svg{display:block}
 @keyframes shimmer{to{transform:translateX(100%)}}
 .offline-banner{position:fixed;top:calc(env(safe-area-inset-top) + 7px);left:50%;z-index:60;transform:translateX(-50%);padding:8px 12px;border-radius:999px;background:var(--bad);color:#fff;font-size:.72rem;font-weight:850;box-shadow:var(--shadow-sm)}
 .hidden{display:none!important}
-.bottom-nav{position:fixed;left:50%;bottom:max(9px,env(safe-area-inset-bottom));z-index:25;transform:translateX(-50%);display:grid;grid-template-columns:repeat(4,1fr);width:min(calc(100% - 18px),600px);padding:7px;border:1px solid color-mix(in srgb,var(--line) 86%,transparent);border-radius:23px;background:color-mix(in srgb,var(--surface) 93%,transparent);box-shadow:0 18px 46px rgba(5,31,52,.16);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.bottom-nav{position:fixed;left:50%;bottom:max(9px,env(safe-area-inset-bottom));z-index:25;transform:translateX(-50%);display:grid;grid-template-columns:repeat(5,1fr);width:min(calc(100% - 18px),600px);padding:7px;border:1px solid color-mix(in srgb,var(--line) 86%,transparent);border-radius:23px;background:color-mix(in srgb,var(--surface) 93%,transparent);box-shadow:0 18px 46px rgba(5,31,52,.16);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
 .bottom-nav button{display:grid;place-items:center;gap:4px;min-height:57px;border:0;border-radius:17px;background:transparent;color:var(--muted);font-weight:720}
 .bottom-nav button span{display:grid;place-items:center}
 .bottom-nav button svg{width:21px;height:21px}
@@ -276,3 +276,5 @@ dialog::backdrop{background:rgba(3,17,27,.52);backdrop-filter:blur(4px)}
 :root[data-theme="dark"]{--bg:#071722;--surface:#0d2432;--surface-soft:#122e3e;--surface-raised:#102936;--ink:#eef7fa;--text:#eef7fa;--muted:#99adba;--muted-strong:#c0ced5;--line:#1d3b49;--line-strong:#315260;--mint:#123c3b;--good-bg:#123a32;--warn-bg:#352a18;--bad-bg:#3b2028;--shadow-sm:none;color-scheme:dark}
 :root[data-theme="dark"] body{background:radial-gradient(circle at 10% -10%,rgba(57,201,187,.09),transparent 28rem),var(--bg)}
 :focus-visible{outline:3px solid color-mix(in srgb,var(--aqua) 75%,white);outline-offset:3px}
+
+@media(max-width:360px){.bottom-nav{width:calc(100% - 10px);padding:5px}.bottom-nav button{min-height:53px}.bottom-nav button small{font-size:.62rem}.bottom-nav button svg{width:19px;height:19px}}
