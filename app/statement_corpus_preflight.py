@@ -180,7 +180,17 @@ def build_batch_preflight(conn, batch_id: int) -> dict:
     ).fetchall()
 
     records = [_from_existing(row) for row in existing_rows]
-    records.extend(_from_staged(row) for row in staged_rows)
+    # A renamed re-upload of an already committed statement is a duplicate,
+    # not a period overlap. Exclude it from continuity analysis.
+    duplicate_staged = [
+        row for row in staged_rows
+        if (row['warning'] or '').startswith('Période déjà présente via ')
+    ]
+    records.extend(
+        _from_staged(row)
+        for row in staged_rows
+        if row not in duplicate_staged
+    )
     result = analyze_records(records)
     return {
         'batch_id': int(batch['id']),
