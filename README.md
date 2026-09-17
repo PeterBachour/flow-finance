@@ -10,7 +10,7 @@ Sa question centrale est :
 
 ## État du projet
 
-- Version applicative : `6.2.0`
+- Version applicative : `6.4.0`
 - Dépôt de référence : `PeterBachour/flow-finance`
 - Branche de référence : `main`
 - Runtime cible : Raspberry Pi 4 sous Debian 13
