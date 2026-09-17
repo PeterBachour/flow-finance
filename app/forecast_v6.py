@@ -99,6 +99,23 @@ def _dated_events(conn, *, as_of: date, horizon_end: date) -> tuple[list[dict], 
             (cycle_month,),
         ).fetchall()
 
+    # Cycle reserves are confirmed monthly commitments without an exact due date.
+    # Keep them in the trajectory at the next horizon day and mark the date as estimated.
+    for row in cycle_rows:
+        if row['kind'] != 'planned_commitment':
+            continue
+        event = {
+            'date': (as_of + timedelta(days=1)).isoformat(),
+            'amount_cents': -abs(int(row['amount_cents'] or 0)),
+            'label': row['label'],
+            'kind': row['kind'],
+            'certainty': 'confirmed',
+            'source': 'cycle_reserve',
+            'date_precision': 'month',
+        }
+        confirmed.append(event)
+        realistic.append(event)
+
     recurring_rows = conn.execute(
         '''SELECT id,label,amount_cents,usual_day,day_of_month,next_expected_date,last_seen_date,
                   source_type,tolerance_cents,category,kind,certainty
