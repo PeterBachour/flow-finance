@@ -377,10 +377,18 @@ def _recurring_forecast_events(conn, today: date) -> list[PlannedEvent]:
           AND COALESCE(is_internal_transfer,0)=0
           AND COALESCE(status,'confirmed')='confirmed'
         ORDER BY booking_date DESC, id DESC
-        LIMIT 1
-    """).fetchone()
+        LIMIT 6
+    """).fetchall()
     if salary:
-        salary_date = date.fromisoformat(salary['booking_date'])
+        month_end_salaries = [
+            row for row in salary
+            if date.fromisoformat(row['booking_date']).day >= 25
+        ]
+        reference_salary = max(
+            month_end_salaries or salary,
+            key=lambda row: date.fromisoformat(row['booking_date']).day,
+        )
+        salary_date = date.fromisoformat(reference_salary['booking_date'])
         next_salary = salary_date
         while next_salary <= today:
             next_month = (next_salary.replace(day=28) + timedelta(days=4)).replace(day=1)
@@ -392,8 +400,8 @@ def _recurring_forecast_events(conn, today: date) -> list[PlannedEvent]:
         if next_salary <= horizon_end:
             events.append(PlannedEvent(
                 due_date=next_salary,
-                amount_cents=int(salary['amount_cents']),
-                label=salary['label'],
+                amount_cents=int(reference_salary['amount_cents']),
+                label=reference_salary['label'],
                 certainty='expected',
                 kind='structuring_income',
                 source='historical_salary_pattern',
