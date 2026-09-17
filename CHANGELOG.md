@@ -1,3 +1,11 @@
+## 6.4.2 - 2026-09-17
+
+- Passe visuelle responsive complète du shell actif.
+- Navigation basse corrigée pour les cinq écrans affichés.
+- Layout mobile compact renforcé pour petits écrans.
+- Tests UI alignés sur le shell canonique v4-ui.js.
+- Cache PWA renouvelé.
+
 ## 6.4.1 - 2026-09-17
 
 - Interface Planifier avec récurrences, objectifs, allocations et simulations.
