@@ -51,7 +51,7 @@
   async function mount(force=false){
     if(loading)return;const home=q('[data-screen="home"]'),hero=q('.card.hero',home);if(!home||!hero||!home.classList.contains('active'))return;
     if(!force&&payload&&q('[data-v63-trajectory]',home)){renderHero(payload,home);return;}loading=true;
-    try{const response=await fetch('/api/v6/trajectory',{cache:'no-store'});if(!response.ok)throw new Error(`HTTP ${response.status}`);payload=await response.json();renderHero(payload,home);renderCard();home.dataset.v63Home='true';}
+    try{const response=await fetch('/api/v6/trajectory',{cache:'no-store'});if(!response.ok)throw new Error(`HTTP ${response.status}`);payload=await response.json();if(payload.availability&&!payload.availability.available)return;renderHero(payload,home);renderCard();home.dataset.v63Home='true';}
     catch(error){console.warn('Flow V6.3 trajectory unavailable; keeping previous cockpit',error);}finally{loading=false;}
   }
   const observer=new MutationObserver(()=>queueMicrotask(()=>mount(false)));
