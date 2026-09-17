@@ -287,3 +287,16 @@ dialog::backdrop{background:rgba(3,17,27,.52);backdrop-filter:blur(4px)}
   .forecast-summary .decision-row{grid-template-columns:minmax(0,1fr) auto}
   .forecast-summary .decision-row .money{grid-column:auto;text-align:right}
 }
+
+
+/* Explanations: make financial calculations readable at a glance. */
+.explain-card{background:var(--surface-raised);border-color:var(--line)}
+.explain-card h2{font-size:1.15rem}
+.formula{display:grid;gap:8px;margin-top:12px;padding:13px;border:1px solid var(--line);border-radius:15px;background:var(--surface)}
+.formula-row{display:flex;justify-content:space-between;gap:14px;align-items:baseline;font-size:.78rem}
+.formula-row span{color:var(--muted-strong)}
+.formula-row strong{white-space:nowrap;font-variant-numeric:tabular-nums}
+.formula-result{padding-top:9px;border-top:1px solid var(--line);font-weight:850}
+.movement-guide{padding:14px 16px}
+.movement-guide p{margin:0}
+@media(max-width:390px){.formula-row{font-size:.75rem}}
