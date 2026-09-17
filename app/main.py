@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from .db import connection, init_db
 from .finance import budget_status, goal_summary, month_key
 from .forecast import PlannedEvent, build_forecast
+from .safe_to_spend_explanation import build_safe_to_spend_explanation
 from .notion_import import bootstrap_if_needed
 from .update_routes import router as update_router
 from .version import VERSION
@@ -446,14 +447,8 @@ def dashboard():
 @app.get('/api/safe-to-spend/explanation')
 def safe_to_spend_explanation():
     """Return the same auditable decision inputs used by the dashboard."""
-    dashboard = dashboard_data()
-    forecast = dashboard['forecast']
-    return {
-        'as_of': dashboard['as_of'],
-        'account': dashboard['accounts'][0] if dashboard['accounts'] else None,
-        'forecast': forecast,
-        'explanation': forecast.get('explanation', {}),
-    }
+    with connection() as conn:
+        return build_safe_to_spend_explanation(conn, stale_reference_date=date.today())
 
 
 @app.get('/api/v6/safe-to-spend/explanation')
