@@ -1,3 +1,9 @@
+## 6.4.4 - 2026-09-17
+
+- Passe de lisibilité sur Mouvements, Mois et Patrimoine.
+- Explications visibles des calculs : solde du mois, budget restant et patrimoine net.
+- Ordre de lecture des mouvements simplifié et cache PWA renouvelé.
+
 ## 6.4.3 - 2026-09-17
 
 - Correction de la carte Prévision vérifiée sur mobile.
