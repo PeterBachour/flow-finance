@@ -1,3 +1,12 @@
+## 6.4.1 - 2026-09-17
+
+- Interface Planifier avec récurrences, objectifs, allocations et simulations.
+- Actions de validation/rejet des engagements récurrents.
+- Explication Safe-to-spend réconciliée avec ses sources.
+- Suppression des anciens modules cockpit du shell actif.
+- Cache PWA renouvelé pour éviter les écrans obsolètes.
+- Les simulations et allocations ne créent aucun mouvement bancaire.
+
 ## 6.4.0 — Safe to Spend explicable
 
 - Contrat d'explication réconcilié au centime.
