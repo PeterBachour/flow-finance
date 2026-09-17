@@ -335,7 +335,7 @@ def commit_batch(conn, batch_id: int) -> dict:
                 result['warnings_skipped'] += 1
                 continue
             statement_id = statement_fingerprint(account_id, payload.get('bank'), metadata, rows)
-            duplicate = find_duplicate_statement(conn, account_id, statement_id)
+            duplicate = find_duplicate_statement(conn, account_id, statement_id, metadata)
             if duplicate:
                 conn.execute("UPDATE bulk_import_documents SET status='duplicate',committed_entity_id=? WHERE id=?", (duplicate['id'], doc['id']))
                 result['duplicates'] += 1
