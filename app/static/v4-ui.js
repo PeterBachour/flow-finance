@@ -76,12 +76,12 @@
     try{
       const [overview,plan,inbox,dashboard]=await Promise.all([api('/api/v3/overview'),api('/api/v3.4/action-plan?months=3'),api('/api/v3.6/decision-inbox'),api('/api/dashboard')]);
       const verified=dashboard.forecast||{},account=dashboard.accounts?.[0]||{},verifiedIncome=verified.next_income;
-      const safe=overview.cockpit?.safe_to_spend||{},forecast=overview.cockpit?.forecast||{},health=overview.health||{},explanation=safe.explanation||{};
+      const overviewSafe=overview.cockpit?.safe_to_spend||{},forecast=overview.cockpit?.forecast||{},health=overview.health||{},explanation=overviewSafe.explanation||{};
       const cockpit={
         ...(overview.cockpit||{}),
         opening_balance_cents:account.current_balance_cents,
         safe_to_spend:{
-          ...safe,
+          ...overviewSafe,
           today_cents:verified.safe_to_spend_cents,
           week_cents:verified.safe_to_spend_cents,
           until_income_cents:verified.safe_to_spend_cents,
