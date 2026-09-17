@@ -76,7 +76,7 @@
     try{
       const [overview,plan,inbox,dashboard]=await Promise.all([api('/api/v3/overview'),api('/api/v3.4/action-plan?months=3'),api('/api/v3.6/decision-inbox'),api('/api/dashboard')]);
       const verified=dashboard.forecast||{},account=dashboard.accounts?.[0]||{},verifiedIncome=verified.next_income;
-      const overviewSafe=overview.cockpit?.safe_to_spend||{},forecast=overview.cockpit?.forecast||{},health=overview.health||{},explanation=overviewSafe.explanation||{};
+      const overviewSafe=overview.cockpit?.safe_to_spend||{},health=overview.health||{},explanation=overviewSafe.explanation||{};
       const cockpit={
         ...(overview.cockpit||{}),
         opening_balance_cents:account.current_balance_cents,
