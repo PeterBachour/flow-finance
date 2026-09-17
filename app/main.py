@@ -443,6 +443,24 @@ def dashboard():
     return dashboard_data()
 
 
+@app.get('/api/safe-to-spend/explanation')
+def safe_to_spend_explanation():
+    """Return the same auditable decision inputs used by the dashboard."""
+    dashboard = dashboard_data()
+    forecast = dashboard['forecast']
+    return {
+        'as_of': dashboard['as_of'],
+        'account': dashboard['accounts'][0] if dashboard['accounts'] else None,
+        'forecast': forecast,
+        'explanation': forecast.get('explanation', {}),
+    }
+
+
+@app.get('/api/v6/safe-to-spend/explanation')
+def legacy_safe_to_spend_explanation():
+    return safe_to_spend_explanation()
+
+
 @app.post('/api/simulations')
 def simulate(payload: SimulationIn):
     baseline = dashboard_data()
