@@ -278,3 +278,12 @@ dialog::backdrop{background:rgba(3,17,27,.52);backdrop-filter:blur(4px)}
 :focus-visible{outline:3px solid color-mix(in srgb,var(--aqua) 75%,white);outline-offset:3px}
 
 @media(max-width:360px){.bottom-nav{width:calc(100% - 10px);padding:5px}.bottom-nav button{min-height:53px}.bottom-nav button small{font-size:.62rem}.bottom-nav button svg{width:19px;height:19px}}
+
+/* Forecast rows have no leading icon: keep labels readable on mobile. */
+.forecast-summary .decision-row{grid-template-columns:minmax(0,1fr) auto;align-items:center}
+.forecast-summary .decision-row>div:first-child{min-width:0}
+.forecast-summary .decision-row .money{min-width:max-content;text-align:right}
+@media(max-width:390px){
+  .forecast-summary .decision-row{grid-template-columns:minmax(0,1fr) auto}
+  .forecast-summary .decision-row .money{grid-column:auto;text-align:right}
+}
