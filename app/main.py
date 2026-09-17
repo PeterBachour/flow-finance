@@ -1,5 +1,6 @@
+import calendar
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -315,6 +316,61 @@ def allocate_goal(goal_id: int, payload: AllocationIn):
     return dict(row)
 
 
+def _recurring_forecast_events(conn, today: date) -> list[PlannedEvent]:
+    horizon_end = (today.replace(day=28) + timedelta(days=35)).replace(day=1)
+    horizon_end = horizon_end + timedelta(days=calendar.monthrange(horizon_end.year, horizon_end.month)[1] - 1)
+    rows = conn.execute("""
+        SELECT label, amount_cents, day_of_month, certainty,
+               next_expected_date, source_type
+        FROM recurring_transactions
+        WHERE is_active=1 AND amount_cents<>0
+        ORDER BY id
+    """).fetchall()
+    events: list[PlannedEvent] = []
+    for row in rows:
+        if row['next_expected_date']:
+            try:
+                occurrence = date.fromisoformat(row['next_expected_date'])
+            except ValueError:
+                occurrence = today
+        else:
+            day = min(
+                max(1, int(row['day_of_month'] or 1)),
+                calendar.monthrange(today.year, today.month)[1],
+            )
+            occurrence = date(today.year, today.month, day)
+            if occurrence < today:
+                next_month = (today.replace(day=28) + timedelta(days=4)).replace(day=1)
+                occurrence = date(
+                    next_month.year,
+                    next_month.month,
+                    min(int(row['day_of_month'] or 1), calendar.monthrange(next_month.year, next_month.month)[1]),
+                )
+        while occurrence < today:
+            next_month = (occurrence.replace(day=28) + timedelta(days=4)).replace(day=1)
+            occurrence = date(
+                next_month.year,
+                next_month.month,
+                min(int(row['day_of_month'] or 1), calendar.monthrange(next_month.year, next_month.month)[1]),
+            )
+        while occurrence <= horizon_end:
+            events.append(PlannedEvent(
+                due_date=occurrence,
+                amount_cents=int(row['amount_cents']),
+                label=row['label'],
+                certainty=row['certainty'] or 'expected',
+                kind='commitment' if int(row['amount_cents']) < 0 else 'structuring_income',
+                source='recurring',
+            ))
+            next_month = (occurrence.replace(day=28) + timedelta(days=4)).replace(day=1)
+            occurrence = date(
+                next_month.year,
+                next_month.month,
+                min(int(row['day_of_month'] or 1), calendar.monthrange(next_month.year, next_month.month)[1]),
+            )
+    return events
+
+
 def dashboard_data(extra_events: list[PlannedEvent] | None = None) -> dict:
     today = date.today()
     with connection() as conn:
@@ -324,6 +380,7 @@ def dashboard_data(extra_events: list[PlannedEvent] | None = None) -> dict:
         reserve = int(reserve_row['value']) if reserve_row else 0
         rows = conn.execute("SELECT due_date,amount_cents,label,certainty FROM planned_transactions WHERE status='planned' AND due_date>=? ORDER BY due_date", (today.isoformat(),)).fetchall()
         events = [PlannedEvent(date.fromisoformat(r['due_date']),r['amount_cents'],r['label'],r['certainty']) for r in rows]
+        events.extend(_recurring_forecast_events(conn, today))
         events.extend(extra_events or [])
         allocated = conn.execute('SELECT COALESCE(SUM(amount_cents),0) total FROM goal_allocations').fetchone()['total']
         forecast = build_forecast(
