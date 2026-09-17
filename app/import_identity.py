@@ -58,10 +58,23 @@ def statement_fingerprint(account_id: int, bank: str | None, metadata: dict, row
     return hashlib.sha256(raw.encode('utf-8')).hexdigest()
 
 
-def find_duplicate_statement(conn, account_id: int, fingerprint: str):
-    return conn.execute(
+def find_duplicate_statement(conn, account_id: int, fingerprint: str, metadata: dict | None = None):
+    match = conn.execute(
         "SELECT id,filename,created_at FROM imports WHERE account_id=? AND statement_fingerprint=? AND status='completed' ORDER BY id LIMIT 1",
         (account_id, fingerprint),
+    ).fetchone()
+    if match or not metadata:
+        return match
+    # Backward compatibility for statements imported before fingerprints existed.
+    return conn.execute(
+        """SELECT id,filename,created_at FROM imports
+           WHERE account_id=? AND status='completed'
+             AND period_start=? AND period_end=?
+             AND opening_balance_cents IS ?
+             AND closing_balance_cents IS ?
+           ORDER BY id LIMIT 1""",
+        (account_id, metadata.get('period_start'), metadata.get('period_end'),
+         metadata.get('opening_balance_cents'), metadata.get('closing_balance_cents')),
     ).fetchone()
 
 
