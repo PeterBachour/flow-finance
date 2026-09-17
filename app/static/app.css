@@ -305,3 +305,28 @@ dialog::backdrop{background:rgba(3,17,27,.52);backdrop-filter:blur(4px)}
 /* Keep recurring actions compact and aligned on mobile. */
 .row .recurring-decision{grid-column:2;grid-row:1;width:auto;align-self:center;white-space:nowrap}
 @media(max-width:390px){.row .recurring-decision{grid-column:1/-1;grid-row:auto;width:100%;min-height:40px}}
+
+
+/* Movements redesign: summary first, secondary intelligence collapsed. */
+.movement-overview{padding-bottom:16px}
+.movement-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+.movement-totals>div{padding:11px 10px;border-radius:14px;background:var(--surface-soft)}
+.movement-totals span,.movement-totals strong{display:block}
+.movement-totals span{color:var(--muted);font-size:.68rem}
+.movement-totals strong{margin-top:5px;font-size:.88rem;white-space:nowrap}
+.category-list{display:grid;gap:4px}
+.category-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,42%);gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.category-row:last-child{border-bottom:0}
+.category-name strong,.category-name small{display:block}
+.category-name small{margin-top:3px;color:var(--muted);font-size:.68rem}
+.category-value{text-align:right}
+.category-value>strong{display:block;font-size:.8rem}
+.category-value>i{display:block;height:6px;margin-top:7px;overflow:hidden;border-radius:99px;background:var(--surface-soft)}
+.category-value b{display:block;height:100%;border-radius:inherit;background:var(--teal)}
+.movement-suggestions details{border:0}
+.movement-suggestions summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none}
+.movement-suggestions summary::-webkit-details-marker{display:none}
+.movement-suggestions summary p{margin:0 0 4px}
+.movement-suggestions summary strong{font-size:.95rem}
+.suggestion-list{margin-top:12px}
+@media(max-width:390px){.movement-totals{gap:6px}.movement-totals>div{padding:10px 7px}.movement-totals strong{font-size:.76rem}.category-row{grid-template-columns:minmax(0,1fr) 42%}}
