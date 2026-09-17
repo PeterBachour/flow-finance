@@ -325,11 +325,17 @@ def dashboard_data(extra_events: list[PlannedEvent] | None = None) -> dict:
         rows = conn.execute("SELECT due_date,amount_cents,label,certainty FROM planned_transactions WHERE status='planned' AND due_date>=? ORDER BY due_date", (today.isoformat(),)).fetchall()
         events = [PlannedEvent(date.fromisoformat(r['due_date']),r['amount_cents'],r['label'],r['certainty']) for r in rows]
         events.extend(extra_events or [])
-        forecast = build_forecast(today=today, opening_balance_cents=opening, events=events, safety_reserve_cents=reserve)
+        allocated = conn.execute('SELECT COALESCE(SUM(amount_cents),0) total FROM goal_allocations').fetchone()['total']
+        forecast = build_forecast(
+            today=today,
+            opening_balance_cents=opening,
+            events=events,
+            safety_reserve_cents=reserve,
+            allocated_cents=allocated,
+        )
         mk = month_key(today)
         spent = conn.execute("SELECT COALESCE(SUM(-amount_cents),0) total FROM transactions WHERE substr(booking_date,1,7)=? AND amount_cents<0 AND is_internal_transfer=0", (mk,)).fetchone()['total']
         income = conn.execute("SELECT COALESCE(SUM(amount_cents),0) total FROM transactions WHERE substr(booking_date,1,7)=? AND amount_cents>0 AND is_internal_transfer=0", (mk,)).fetchone()['total']
-        allocated = conn.execute('SELECT COALESCE(SUM(amount_cents),0) total FROM goal_allocations').fetchone()['total']
     return {'as_of': today.isoformat(), 'accounts': [dict(r) for r in accounts], 'month': {'spent_cents': spent, 'income_cents': income}, 'allocated_cents': allocated, 'forecast': forecast}
 
 
