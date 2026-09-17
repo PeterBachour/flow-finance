@@ -75,7 +75,28 @@
     const root=q('[data-screen="home"]');root.innerHTML=page('Aujourd’hui',todayLabel(),'Ta situation utile, avant toute décision.')+skeleton();
     try{
       const [overview,plan,inbox,dashboard]=await Promise.all([api('/api/v3/overview'),api('/api/v3.4/action-plan?months=3'),api('/api/v3.6/decision-inbox'),api('/api/dashboard')]);
-      const cockpit=overview.cockpit||{},safe=cockpit.safe_to_spend||{},forecast=cockpit.forecast||{},health=overview.health||{},explanation=safe.explanation||{},nextOutflow=cockpit.next_outflow,nextIncome=cockpit.next_income;
+      const verified=dashboard.forecast||{},account=dashboard.accounts?.[0]||{},verifiedIncome=verified.next_income;
+      const safe=overview.cockpit?.safe_to_spend||{},forecast=overview.cockpit?.forecast||{},health=overview.health||{},explanation=safe.explanation||{};
+      const cockpit={
+        ...(overview.cockpit||{}),
+        opening_balance_cents:account.current_balance_cents,
+        safe_to_spend:{
+          ...safe,
+          today_cents:verified.safe_to_spend_cents,
+          week_cents:verified.safe_to_spend_cents,
+          until_income_cents:verified.safe_to_spend_cents,
+          status:'prudent',
+          explanation:{
+            ...explanation,
+            safety_reserve_cents:verified.safety_reserve_cents,
+            goal_allocations_cents:verified.allocated_cents,
+            days_to_horizon:verified.timeline?.length||0
+          }
+        },
+        forecast:verified,
+        next_income:verifiedIncome
+      };
+      const safe=cockpit.safe_to_spend||{},forecast=cockpit.forecast||{},nextOutflow=cockpit.next_outflow,nextIncome=cockpit.next_income;
       const openActions=(plan.actions||[]).filter(action=>action.status==='open'),decisions=inbox.items||[],primaryAction=openActions[0],primaryDecision=decisions[0];
       root.innerHTML=page('Aujourd’hui',todayLabel(),'Ta situation utile, avant toute décision.')+`<section class="card hero"><div class="hero-top"><span class="status-pill" data-status="${esc(safe.status)}">${safeLabel(safe.status)}</span><span class="confidence-pill">${Math.round((cockpit.confidence?.score||0)*100)} % de confiance</span></div><p class="hero-label">Disponible aujourd’hui</p><div class="hero-amount">${euro(safe.today_cents)}</div><p class="hero-copy">Tu peux dépenser ce montant aujourd’hui sans entamer les échéances, objectifs et réserves déjà protégés.</p><div class="hero-facts"><div class="hero-fact"><span>Sur 7 jours</span><strong>${euro(safe.week_cents)}</strong><small>rythme conseillé</small></div><div class="hero-fact"><span>Jusqu’au revenu</span><strong>${euro(safe.until_income_cents)}</strong><small>${explanation.days_to_horizon||'—'} jour(s)</small></div><div class="hero-fact"><span>Solde réel</span><strong>${euro(cockpit.opening_balance_cents)}</strong><small>avant engagements</small></div></div></section><section class="home-summary"><article class="card decision-card"><div class="section-head"><div><p class="eyebrow">Prochaine échéance</p><h2>${nextOutflow?esc(nextOutflow.label):'Aucune sortie proche'}</h2></div><span class="decision-icon">${icon('calendar')}</span></div>${nextOutflow?`<div class="decision-row"><div><strong>${dateLabel(nextOutflow.due_date)}</strong>${nextOutflow.balance_after_cents!=null?`<small>Solde projeté ensuite : ${euro(nextOutflow.balance_after_cents)}</small>`:''}</div><div class="money">${euro(nextOutflow.amount_cents)}</div></div>`:'<p class="subtle">Aucune échéance n’est identifiée sur l’horizon actuel.</p>'}${nextIncome?`<p class="subtle">Prochain revenu structurant le ${dateLabel(nextIncome.date||nextIncome.due_date)}.</p>`:''}</article><article class="card"><div class="section-head"><div><p class="eyebrow">Santé financière</p><h2>${healthLabel(health.status)}</h2></div><div class="quality-ring">${health.score??'—'}</div></div><p class="subtle">Point bas prévu : <strong>${euro(forecast.low_point?.balance_cents)}</strong><br>Réserve protégée : <strong>${euro(explanation.safety_reserve_cents)}</strong></p></article></section><section class="card"><div class="section-head"><div><p class="eyebrow">Décision</p><h2>Priorité maintenant</h2></div><button class="section-action" data-open-settings>Centre de pilotage</button></div>${primaryAction?`<div class="decision-row"><span class="decision-icon">${icon(primaryAction.priority==='critical'?'alert':'arrow')}</span><div><strong>${esc(primaryAction.title)}</strong><small>${esc(primaryAction.detail)}</small></div>${primaryAction.amount_cents!=null?`<div class="money">${euro(primaryAction.amount_cents)}</div>`:''}</div>`:'<div class="empty-state">Aucune action financière prioritaire.</div>'}${primaryDecision?`<div class="decision-row"><span class="decision-icon">${icon('spark')}</span><div><strong>${esc(primaryDecision.title)}</strong><small>${esc(primaryDecision.detail)}</small></div>${primaryDecision.amount_cents!=null?`<div class="money">${euro(primaryDecision.amount_cents)}</div>`:''}</div>`:''}</section><section class="metric-grid"><article class="card metric metric-accent"><span>Actions ouvertes</span><strong>${plan.summary?.open_actions||0}</strong><small>${plan.summary?.critical_actions||0} critique(s)</small></article><article class="card metric"><span>Décisions à prendre</span><strong>${inbox.open_count||0}</strong><small>nécessitent ton choix</small></article><article class="card metric"><span>Marge minimale</span><strong>${euro(plan.summary?.minimum_safe_margin_cents)}</strong><small>projection à 3 mois</small></article><article class="card metric"><span>Objectifs réservés</span><strong>${euro(explanation.goal_allocations_cents)}</strong><small>déjà protégés</small></article></section>`;
       const verifiedForecast=dashboard.forecast||{},verifiedIncome=verifiedForecast.next_income;
