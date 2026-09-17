@@ -389,6 +389,10 @@ def _recurring_forecast_events(conn, today: date) -> list[PlannedEvent]:
             key=lambda row: date.fromisoformat(row['booking_date']).day,
         )
         salary_date = date.fromisoformat(reference_salary['booking_date'])
+        salary_amount = round(
+            sum(int(row['amount_cents']) for row in (month_end_salaries or salary))
+            / len(month_end_salaries or salary)
+        )
         next_salary = salary_date
         while next_salary <= today:
             next_month = (next_salary.replace(day=28) + timedelta(days=4)).replace(day=1)
@@ -400,7 +404,7 @@ def _recurring_forecast_events(conn, today: date) -> list[PlannedEvent]:
         if next_salary <= horizon_end:
             events.append(PlannedEvent(
                 due_date=next_salary,
-                amount_cents=int(reference_salary['amount_cents']),
+                amount_cents=salary_amount,
                 label=reference_salary['label'],
                 certainty='expected',
                 kind='structuring_income',
