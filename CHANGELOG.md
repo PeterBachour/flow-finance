@@ -1,3 +1,10 @@
+## 6.4.13 - 2026-09-18
+
+- Correction de l'erreur `q('#taxMonthly')` dans Planifier.
+- Affichage de toutes les échéances du mois sélectionné.
+- Ajout du calcul détaillé du montant restant.
+- Les échéances fiscales sont filtrées selon le mois réel.
+
 ## 6.4.12 - 2026-09-18
 
 - Ajout des prélèvements fiscaux dans les prochaines échéances.
