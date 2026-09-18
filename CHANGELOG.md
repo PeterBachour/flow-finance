@@ -1,3 +1,8 @@
+## 6.4.5 - 2026-09-18
+
+- Containment stricte de la page Mouvements sur mobile.
+- Cache PWA renouvelé pour forcer le chargement du correctif.
+
 ## 6.4.4 - 2026-09-17
 
 - Passe de lisibilité sur Mouvements, Mois et Patrimoine.
