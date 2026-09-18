@@ -1,3 +1,9 @@
+## 6.4.17 - 2026-09-18
+
+- Ajout de la sélection de plusieurs groupes dans la revue des imports.
+- Aperçu global avant validation avec comptage des mouvements, débits, crédits et impact net.
+- Mise en page mobile des contrôles de revue groupée.
+
 ## 6.4.16 - 2026-09-18
 
 - Correction du rendu de la carte Revue groupée dans Mouvements.
