@@ -1,3 +1,9 @@
+## 6.4.8 - 2026-09-18
+
+- Ajout d'une projection des impôts sur les quatre prochains mois.
+- Taux d'impôt configurable et calcul détaillé par mois.
+- Montant présenté comme réserve prévisionnelle, sans modifier le solde réel.
+
 ## 6.4.7 - 2026-09-18
 
 - Sélecteur de mois ajouté directement dans Mouvements.
