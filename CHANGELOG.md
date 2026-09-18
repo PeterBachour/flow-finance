@@ -1,3 +1,10 @@
+## 6.4.10 - 2026-09-18
+
+- Correction du calcul fiscal.
+- Régularisation basée sur un montant fixe de 113 € par mois.
+- Projection sur quatre mois : 452 € à réserver.
+- Montant mensuel modifiable depuis Planifier.
+
 ## 6.4.9 - 2026-09-18
 
 - Le mois affiche maintenant le solde estimé en fin de mois.
