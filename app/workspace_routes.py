@@ -8,6 +8,7 @@ from .finance import goal_summary
 from .financial_routes import router as financial_router
 from .statement_corpus_routes import router as statement_corpus_router
 from .import_routes import router as import_router
+from .group_review_routes import router as group_review_router
 from .month_prep_routes import router as month_prep_router
 from .onboarding_routes import router as onboarding_router
 from .projection_routes import router as projection_router
@@ -42,6 +43,7 @@ router = APIRouter()
 router.include_router(financial_router)
 router.include_router(statement_corpus_router)
 router.include_router(import_router)
+router.include_router(group_review_router)
 router.include_router(recurring_router)
 router.include_router(projection_router)
 router.include_router(month_prep_router)
