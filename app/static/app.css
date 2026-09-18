@@ -359,3 +359,14 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
   .screen.active{grid-template-columns:minmax(0,1fr)}
   .screen.active>.card,.screen.active>.toolbar,.screen.active>.page-head{width:100%;max-width:100%}
 }
+
+
+/* Recurring payments: three aligned columns on desktop, compact two-line rows on mobile. */
+.recurring-row{grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:16px 0}
+.recurring-row .money{font-size:.9rem}
+.recurring-row .recurring-decision{grid-column:auto;grid-row:auto;width:auto;min-height:40px;padding:0 16px}
+@media(max-width:390px){
+  .recurring-row{grid-template-columns:minmax(0,1fr) auto;gap:8px}
+  .recurring-row .money{grid-column:2;grid-row:1;font-size:.82rem}
+  .recurring-row .recurring-decision{grid-column:1/-1;grid-row:2;width:100%;min-height:38px}
+}
