@@ -54,6 +54,28 @@ def test_overlap_blocks_commit():
     assert result['issues'][0]['type'] == 'period_overlap'
 
 
+def test_exact_duplicate_with_matching_balances_is_safe():
+    result = analyze_records([
+        record('already-imported.pdf', '2026-01-01', '2026-01-31', 100_00, 150_00),
+        record('renamed-upload.pdf', '2026-01-01', '2026-01-31', 100_00, 150_00, staged=True, source_id=2),
+        record('feb.pdf', '2026-02-01', '2026-02-28', 150_00, 120_00, staged=True, source_id=3),
+    ])
+    assert result['status'] == 'ready'
+    assert result['can_commit'] is True
+    assert result['issues'] == []
+    assert result['duplicate_statement_count'] == 1
+
+
+def test_same_period_with_conflicting_balances_still_blocks():
+    result = analyze_records([
+        record('already-imported.pdf', '2026-01-01', '2026-01-31', 100_00, 150_00),
+        record('conflicting-upload.pdf', '2026-01-01', '2026-01-31', 100_00, 151_00, staged=True, source_id=2),
+    ])
+    assert result['status'] == 'blocked'
+    assert result['can_commit'] is False
+    assert result['issues'][0]['type'] == 'period_overlap'
+
+
 def test_balance_discontinuity_blocks_commit():
     result = analyze_records([
         record('jan.pdf', '2026-01-01', '2026-01-31', 100_00, 150_00),
