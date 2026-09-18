@@ -1,3 +1,8 @@
+## 6.4.6 - 2026-09-18
+
+- Alignement des montants et actions dans les récurrences de Planifier.
+- Affichage mobile compact de la carte des charges récurrentes.
+
 ## 6.4.5 - 2026-09-18
 
 - Containment stricte de la page Mouvements sur mobile.
