@@ -346,3 +346,16 @@ dialog::backdrop{background:rgba(3,17,27,.52);backdrop-filter:blur(4px)}
   .movement-row{grid-template-columns:36px minmax(0,1fr) auto;gap:8px}
   .movement-row .money{font-size:.76rem}
 }
+
+
+/* Hard mobile viewport containment. */
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+.app-shell,.app-header,.app-content,#app{width:100%;max-width:1120px}
+.app-content{overflow-x:hidden}
+.screen.active{width:100%;min-width:0}
+.screen.active>*{min-width:0;max-width:100%}
+@media(max-width:699px){
+  .app-content{padding-right:10px;padding-left:10px}
+  .screen.active{grid-template-columns:minmax(0,1fr)}
+  .screen.active>.card,.screen.active>.toolbar,.screen.active>.page-head{width:100%;max-width:100%}
+}
