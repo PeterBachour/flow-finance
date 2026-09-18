@@ -1,3 +1,9 @@
+## 6.4.14 - 2026-09-18
+
+- Ajout d'un aperçu obligatoire avant validation groupée des mouvements importés.
+- Validation groupée limitée au libellé sélectionné, avec confirmation explicite.
+- Conservation des montants et dates, sans création de transaction.
+
 ## 6.4.13 - 2026-09-18
 
 - Correction de l'erreur `q('#taxMonthly')` dans Planifier.
