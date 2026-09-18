@@ -385,9 +385,32 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .group-review-row input{width:20px;min-height:20px;accent-color:var(--teal)}
 .group-review-row strong,.group-review-row small{display:block}
 .group-review-row small{margin-top:3px;color:var(--muted);font-size:.68rem;line-height:1.35}
+.group-review-modal{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+.group-preview-intro{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:15px;background:var(--surface-soft)}
+.group-preview-intro p{margin:0;color:var(--muted);font-size:.74rem;line-height:1.35}
+.group-preview-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0}
+.group-preview-summary>div{padding:11px 9px;border:1px solid var(--line);border-radius:14px;background:var(--surface-raised)}
+.group-preview-summary span,.group-preview-summary strong{display:block}
+.group-preview-summary span{color:var(--muted);font-size:.68rem}
+.group-preview-summary strong{margin-top:4px;font-size:1rem}
+.group-preview-summary .group-preview-total{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;background:color-mix(in srgb,var(--mint) 34%,var(--surface-raised))}
+.group-preview-summary .group-preview-total strong{margin-top:0;font-size:1.12rem}
+.group-preview-section{padding:14px 0;border-top:1px solid var(--line)}
+.group-preview-section h3{margin:0;font-size:.95rem}
+.group-preview-section .section-head{margin-bottom:8px}
+.group-preview-groups,.group-preview-movements{display:grid;gap:6px}
+.group-preview-line,.group-preview-movement{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 11px;border:1px solid var(--line);border-radius:12px;background:var(--surface-raised)}
+.group-preview-line strong,.group-preview-line small,.group-preview-movement strong,.group-preview-movement small{display:block}
+.group-preview-line small,.group-preview-movement small{margin-top:3px;color:var(--muted);font-size:.68rem}
+.group-preview-movement .money{font-size:.82rem;white-space:nowrap}
+.group-preview-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.group-preview-actions .btn{min-height:42px}
 @media(max-width:390px){
   .group-review-batch{grid-template-columns:1fr 1fr}
   .group-review-batch button{grid-column:1/-1}
   .group-review-row{grid-template-columns:auto minmax(0,1fr)}
   .group-review-row .group-review-apply{grid-column:2;width:100%}
+  .group-preview-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .group-preview-actions{position:sticky;bottom:0;margin-right:-6px;margin-left:-6px;padding:12px 6px calc(4px + env(safe-area-inset-bottom));background:var(--surface)}
+  .group-preview-actions .btn{flex:1}
 }

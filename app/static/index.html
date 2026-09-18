@@ -8,10 +8,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Flow">
   <title>Flow</title>
-  <link rel="manifest" href="/manifest.webmanifest?v=6.4.17">
-  <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v=6.4.17">
-  <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png?v=6.4.17">
-  <link rel="stylesheet" href="/static/app.css?v=6.4.17">
+  <link rel="manifest" href="/manifest.webmanifest?v=6.4.18">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v=6.4.18">
+  <link rel="icon" type="image/png" href="/static/icon-192.png?v=6.4.18">
+  <link rel="stylesheet" href="/static/app.css?v=6.4.18">
 </head>
 <body>
   <div class="app-shell">
@@ -28,6 +28,7 @@
   <dialog id="settingsDialog" class="sheet-dialog"><div class="sheet-panel large"><div class="sheet-handle"></div><div class="sheet-head"><div><p class="eyebrow">Flow</p><h2>Réglages</h2></div><button class="icon-btn" data-close="settingsDialog" aria-label="Fermer">×</button></div><div id="systemCenter" class="stack"><div class="skeleton tall"></div></div></div></dialog>
   <dialog id="changelogDialog" class="sheet-dialog"><div class="sheet-panel large"><div class="sheet-handle"></div><div class="sheet-head"><div><p class="eyebrow">Historique</p><h2>Nouveautés Flow</h2></div><button class="icon-btn" data-close="changelogDialog">×</button></div><div id="changelogList" class="stack"><div class="skeleton tall"></div></div></div></dialog>
   <dialog id="editDialog" class="sheet-dialog"><div class="sheet-panel large"><div class="sheet-handle"></div><div class="sheet-head"><div><p class="eyebrow">Édition</p><h2>Modifier</h2></div><button class="icon-btn" id="closeEdit">×</button></div><div id="editBody" class="stack"></div></div></dialog>
-  <script src="/static/v4-ui.js?v=6.4.17" defer></script>
+  <dialog id="groupReviewDialog" class="sheet-dialog"><div class="sheet-panel large group-review-modal"><div class="sheet-handle"></div><div class="sheet-head"><div><p class="eyebrow">Revue groupée</p><h2>Vérifier la sélection</h2></div><button class="icon-btn" id="groupReviewCancel" aria-label="Fermer">×</button></div><div id="groupReviewBody" class="stack"></div><div class="group-preview-actions"><button class="btn secondary" id="groupReviewCancelBottom">Annuler</button><button class="btn primary" id="groupReviewConfirm">Valider la sélection</button></div></div></dialog>
+  <script src="/static/v4-ui.js?v=6.4.18" defer></script>
 </body>
 </html>

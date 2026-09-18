@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.4.17';
+  const VERSION='6.4.18';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -114,6 +114,44 @@
   }
   function shiftMonth(delta){const d=new Date(`${state.month}-15T12:00:00`);d.setMonth(d.getMonth()+delta);state.month=d.toISOString().slice(0,7);renderMonth();}
 
+  function openGroupPreview(preview,{category,transactionType}={}){
+    const dialog=q('#groupReviewDialog'),body=q('#groupReviewBody');
+    if(!dialog||!body)return Promise.resolve(window.confirm('Confirmer la validation de cette sélection ?'));
+    const p=preview||{},movements=p.movements||[],groups=p.groups||[];
+    const amountClass=Number(p.net_amount_cents||0)>=0?'positive':'negative';
+    const typeLabel={expense:'Dépense',income:'Revenu',transfer:'Transfert',refund:'Remboursement'}[transactionType]||'Dépense';
+    const groupLines=groups.length?groups.map(group=>`<div class="group-preview-line"><div><strong>${esc(group.normalized_label)}</strong><small>${group.pending_count} mouvement(s)</small></div></div>`).join(''):`<div class="group-preview-line"><div><strong>${esc(p.normalized_label||'Groupe sélectionné')}</strong><small>${p.pending_count||0} mouvement(s)</small></div></div>`;
+    const movementLines=movements.slice(0,12).map(item=>{const amount=Number(item.amount_cents)||0;return `<div class="group-preview-movement"><div><strong>${esc(item.label||'Mouvement')}</strong><small>${dateLabel(item.booking_date)}</small></div><span class="money ${amount>=0?'positive':'negative'}">${amount>=0?'+':''}${euro(amount)}</span></div>`;}).join('');
+    body.innerHTML=`<div class="group-preview-intro"><span class="status-pill">Aperçu uniquement</span><p>Rien ne sera modifié avant l'appui sur 'Valider'.</p></div><div class="group-preview-summary"><div><span>Groupes</span><strong>${groups.length||1}</strong></div><div><span>Mouvements</span><strong>${p.pending_count||0}</strong></div><div><span>Débits</span><strong>${p.debit_count||0}</strong></div><div><span>Crédits</span><strong>${p.credit_count||0}</strong></div><div class="group-preview-total"><span>Impact net</span><strong class="${amountClass}">${Number(p.net_amount_cents||0)>=0?'+':''}${euro(p.net_amount_cents||0)}</strong></div></div><section class="group-preview-section"><div class="section-head"><div><p class="eyebrow">Application prévue</p><h3>${esc(category||'Catégorie')}</h3></div><span class="chip">${typeLabel}</span></div><p class="subtle">La catégorie sera appliquée à tous les mouvements listés ci-dessous.</p></section><section class="group-preview-section"><div class="section-head"><div><p class="eyebrow">Groupes concernés</p><h3>${groups.length||1} groupe(s)</h3></div></div><div class="group-preview-groups">${groupLines}</div></section><section class="group-preview-section"><div class="section-head"><div><p class="eyebrow">Détail</p><h3>${movements.length>12?`12 premiers mouvements sur ${movements.length}`:`${movements.length} mouvement(s)`}</h3></div></div><div class="group-preview-movements">${movementLines||'<p class="subtle">Aucun détail disponible.</p>'}</div></section>`;
+    dialog.showModal();
+    return new Promise(resolve=>{const finish=result=>{dialog.close();resolve(result);};q('#groupReviewCancel').onclick=()=>finish(false);q('#groupReviewCancelBottom').onclick=()=>finish(false);q('#groupReviewConfirm').onclick=()=>finish(true);});
+  }
+
+  function bindGroupReviewModal(root){
+    root.addEventListener('click',async event=>{
+      const button=event.target.closest('.group-review-apply,#batchGroupReview');
+      if(!button)return;
+      event.preventDefault();
+      event.stopPropagation();
+      const category=q('#batchGroupCategory')?.value;
+      const transactionType=q('#batchGroupType')?.value;
+      const labels=button.id==='batchGroupReview'?[...root.querySelectorAll('[data-group-select]:checked')].map(input=>input.value):[button.dataset.groupLabel];
+      if(!labels.length){alert('Sélectionne au moins un groupe.');return;}
+      if(!category){alert(button.id==='batchGroupReview'?'Choisis une catégorie commune.':'Choisis une catégorie avant de continuer.');return;}
+      button.disabled=true;
+      const endpoint=button.id==='batchGroupReview'?'/api/imports/inbox/group-review/batch':'/api/imports/inbox/group-review';
+      const payload=button.id==='batchGroupReview'?{normalized_labels:labels,category,transaction_type:transactionType,confirm:false}:{normalized_label:labels[0],category,transaction_type:transactionType,confirm:false};
+      try{
+        const preview=await api(endpoint,{method:'POST',body:JSON.stringify(payload)});
+        const confirmed=await openGroupPreview(preview.preview||{},{category,transactionType});
+        if(!confirmed){button.disabled=false;return;}
+        const confirmPayload={...payload,confirm:true};
+        await api(endpoint,{method:'POST',body:JSON.stringify(confirmPayload)});
+        renderMovements();
+      }catch(error){button.disabled=false;alert(error.message);}
+    },true);
+  }
+
   async function renderMovements(){
     const root=q('[data-screen="movements"]');root.innerHTML=page('Contrôle','Mouvements','Comprendre où part ton argent et corriger les opérations.')+skeleton();
     try{
@@ -136,6 +174,7 @@
       root.querySelectorAll('.group-review-apply').forEach(button=>button.addEventListener('click',async()=>{const category=q('#batchGroupCategory').value;const transactionType=q('#batchGroupType').value;if(!category){alert('Choisis une catégorie avant de continuer.');return;}button.disabled=true;try{const preview=await api('/api/imports/inbox/group-review',{method:'POST',body:JSON.stringify({normalized_label:button.dataset.groupLabel,category,transaction_type:transactionType,confirm:false})});const p=preview.preview||{};const confirmed=window.confirm(`Aperçu de validation\\n\\n${p.pending_count||0} mouvement(s)\\nDébits : ${p.debit_count||0}\\nCrédits : ${p.credit_count||0}\\nImpact net : ${euro(p.net_amount_cents||0)}\\n\\nConfirmer uniquement ce groupe ?`);if(confirmed){await api('/api/imports/inbox/group-review',{method:'POST',body:JSON.stringify({normalized_label:button.dataset.groupLabel,category,transaction_type:transactionType,confirm:true})});renderMovements();}else{button.disabled=false;}}catch(error){button.disabled=false;alert(error.message);}}));
 
       q('#batchGroupReview')?.addEventListener('click',async()=>{const labels=[...root.querySelectorAll('[data-group-select]:checked')].map(input=>input.value);const category=q('#batchGroupCategory').value;const transactionType=q('#batchGroupType').value;if(!labels.length){alert('Sélectionne au moins un groupe.');return;}if(!category){alert('Choisis une catégorie commune.');return;}const button=q('#batchGroupReview');button.disabled=true;try{const preview=await api('/api/imports/inbox/group-review/batch',{method:'POST',body:JSON.stringify({normalized_labels:labels,category,transaction_type:transactionType,confirm:false})});const p=preview.preview||{};const confirmed=window.confirm(`Aperçu de validation groupée\\n\\n${p.groups?.length||labels.length} groupe(s)\\n${p.pending_count||0} mouvement(s)\\nDébits : ${p.debit_count||0}\\nCrédits : ${p.credit_count||0}\\nImpact net : ${euro(p.net_amount_cents||0)}\\n\\nConfirmer la validation de toute la sélection ?`);if(confirmed){await api('/api/imports/inbox/group-review/batch',{method:'POST',body:JSON.stringify({normalized_labels:labels,category,transaction_type:transactionType,confirm:true})});renderMovements();}else{button.disabled=false;}}catch(error){button.disabled=false;alert(error.message);}});
+      bindGroupReviewModal(root);
       root.querySelectorAll('.merchant-confirm').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{await api('/api/v3.7/merchant-aliases',{method:'POST',body:JSON.stringify({normalized_key:button.dataset.merchantKey,canonical_name:button.dataset.merchantName})});renderMovements();}catch(error){button.disabled=false;alert(error.message);}}));
     }catch(error){renderError(root,'Mouvements',error,'movements');}
   }

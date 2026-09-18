@@ -1,6 +1,16 @@
 {
   "releases": [
     {
+      "version": "6.4.18",
+      "date": "2026-09-18",
+      "title": "Aperçu modal des validations groupées",
+      "highlights": [
+        "Aperçu structuré de la sélection avant toute modification",
+        "Détail des groupes, mouvements, débits, crédits et impact net",
+        "Confirmation explicite dans une modal adaptée au mobile"
+      ]
+    },
+    {
       "version": "6.4.17",
       "date": "2026-09-18",
       "title": "Revue groupée multi-sélection",
