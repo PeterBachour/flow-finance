@@ -77,6 +77,29 @@ def _record_dict(record: StatementRecord) -> dict:
     }
 
 
+def _same_statement(left: StatementRecord, right: StatementRecord) -> bool:
+    """Recognize a safe re-upload of an already imported statement."""
+    if not (left.staged or right.staged):
+        return False
+    if left.period_start != right.period_start or left.period_end != right.period_end:
+        return False
+    balances_known = all(
+        value is not None
+        for value in (
+            left.opening_balance_cents,
+            left.closing_balance_cents,
+            right.opening_balance_cents,
+            right.closing_balance_cents,
+        )
+    )
+    if not balances_known:
+        return False
+    return (
+        left.opening_balance_cents == right.opening_balance_cents
+        and left.closing_balance_cents == right.closing_balance_cents
+    )
+
+
 def analyze_records(records: list[StatementRecord]) -> dict:
     usable = [
         record for record in records
@@ -85,7 +108,12 @@ def analyze_records(records: list[StatementRecord]) -> dict:
     usable.sort(key=lambda record: (_parse_iso(record.period_start), _parse_iso(record.period_end), record.filename))
 
     issues: list[dict] = []
-    invalid = [record for record in records if record.staged and record.status == 'warning' and not (_parse_iso(record.period_start) and _parse_iso(record.period_end))]
+    invalid = [
+        record for record in records
+        if record.staged
+        and record.status == 'warning'
+        and not (_parse_iso(record.period_start) and _parse_iso(record.period_end))
+    ]
     for record in invalid:
         issues.append({
             'type': 'parse_error',
@@ -95,61 +123,82 @@ def analyze_records(records: list[StatementRecord]) -> dict:
             'detail': record.warning or 'Métadonnées de relevé incomplètes.',
         })
 
-    for current, following in zip(usable, usable[1:]):
-        current_end = _parse_iso(current.period_end)
-        following_start = _parse_iso(following.period_start)
-        if current_end is None or following_start is None:
+    # Exact re-uploads with identical balances are safe duplicates.
+    # Conflicting data for the same period remains blocking.
+    previous: StatementRecord | None = None
+    for current in usable:
+        if previous is None:
+            previous = current
             continue
-        expected_start = current_end + timedelta(days=1)
-        touches_staged = current.staged or following.staged
 
-        if following_start > expected_start and touches_staged:
+        if _same_statement(previous, current):
+            previous = current if current.staged else previous
+            continue
+
+        previous_end = _parse_iso(previous.period_end)
+        current_start = _parse_iso(current.period_start)
+        if previous_end is None or current_start is None:
+            previous = current
+            continue
+
+        expected_start = previous_end + timedelta(days=1)
+        touches_staged = previous.staged or current.staged
+
+        if current_start > expected_start and touches_staged:
             issues.append({
                 'type': 'period_gap',
                 'severity': 'warning',
-                'after_file': current.filename,
-                'before_file': following.filename,
+                'after_file': previous.filename,
+                'before_file': current.filename,
                 'missing_start': expected_start.isoformat(),
-                'missing_end': (following_start - timedelta(days=1)).isoformat(),
-                'missing_days': (following_start - expected_start).days,
+                'missing_end': (current_start - timedelta(days=1)).isoformat(),
+                'missing_days': (current_start - expected_start).days,
             })
-        elif following_start < expected_start and touches_staged:
+        elif current_start < expected_start and touches_staged:
             issues.append({
                 'type': 'period_overlap',
                 'severity': 'blocking',
-                'after_file': current.filename,
-                'before_file': following.filename,
-                'overlap_start': following_start.isoformat(),
-                'overlap_end': current_end.isoformat(),
-                'overlap_days': (current_end - following_start).days + 1,
+                'after_file': previous.filename,
+                'before_file': current.filename,
+                'overlap_start': current_start.isoformat(),
+                'overlap_end': previous_end.isoformat(),
+                'overlap_days': (previous_end - current_start).days + 1,
             })
 
         if (
             touches_staged
-            and following_start == expected_start
-            and current.closing_balance_cents is not None
-            and following.opening_balance_cents is not None
-            and current.closing_balance_cents != following.opening_balance_cents
+            and current_start == expected_start
+            and previous.closing_balance_cents is not None
+            and current.opening_balance_cents is not None
+            and previous.closing_balance_cents != current.opening_balance_cents
         ):
             issues.append({
                 'type': 'balance_discontinuity',
                 'severity': 'blocking',
-                'after_file': current.filename,
-                'before_file': following.filename,
-                'closing_balance_cents': current.closing_balance_cents,
-                'next_opening_balance_cents': following.opening_balance_cents,
-                'difference_cents': following.opening_balance_cents - current.closing_balance_cents,
+                'after_file': previous.filename,
+                'before_file': current.filename,
+                'closing_balance_cents': previous.closing_balance_cents,
+                'next_opening_balance_cents': current.opening_balance_cents,
+                'difference_cents': current.opening_balance_cents - previous.closing_balance_cents,
             })
+
+        previous = current
 
     blocking = [issue for issue in issues if issue['severity'] == 'blocking']
     warnings = [issue for issue in issues if issue['severity'] == 'warning']
     staged = [record for record in records if record.staged]
+    duplicate_count = sum(
+        1
+        for left, right in zip(usable, usable[1:])
+        if _same_statement(left, right)
+    )
     return {
         'status': 'blocked' if blocking else ('warning' if warnings else 'ready'),
         'can_commit': not blocking,
         'requires_confirmation': bool(warnings),
         'statement_count': len(usable),
         'staged_statement_count': len(staged),
+        'duplicate_statement_count': duplicate_count,
         'coverage_start': usable[0].period_start if usable else None,
         'coverage_end': usable[-1].period_end if usable else None,
         'blocking_count': len(blocking),
@@ -180,17 +229,7 @@ def build_batch_preflight(conn, batch_id: int) -> dict:
     ).fetchall()
 
     records = [_from_existing(row) for row in existing_rows]
-    # A renamed re-upload of an already committed statement is a duplicate,
-    # not a period overlap. Exclude it from continuity analysis.
-    duplicate_staged = [
-        row for row in staged_rows
-        if (row['warning'] or '').startswith('Période déjà présente via ')
-    ]
-    records.extend(
-        _from_staged(row)
-        for row in staged_rows
-        if row not in duplicate_staged
-    )
+    records.extend(_from_staged(row) for row in staged_rows)
     result = analyze_records(records)
     return {
         'batch_id': int(batch['id']),
