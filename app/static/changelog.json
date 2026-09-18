@@ -1,6 +1,16 @@
 {
   "releases": [
     {
+      "version": "6.4.15",
+      "date": "2026-09-18",
+      "title": "Visibilité de la revue groupée",
+      "highlights": [
+        "Carte de revue groupée conservée visible en cas d'échec partiel d'une requête",
+        "Erreur de chargement affichée explicitement",
+        "Cache PWA renouvelé"
+      ]
+    },
+    {
       "version": "6.4.14",
       "date": "2026-09-18",
       "title": "Validation groupée des mouvements",
