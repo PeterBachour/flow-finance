@@ -1,3 +1,9 @@
+## 6.4.11 - 2026-09-18
+
+- Échéancier fiscal aligné sur les quatre prélèvements réels.
+- Montants : 113 €, 113 €, 113 € et 116 €.
+- Total affiché : 455 €.
+
 ## 6.4.10 - 2026-09-18
 
 - Correction du calcul fiscal.
