@@ -119,3 +119,105 @@ def review_import_group(payload: GroupReviewIn):
             'rule_applied': rule_applied,
             'read_only': False,
         }
+
+
+class BatchGroupReviewIn(BaseModel):
+    normalized_labels: list[str] = Field(min_length=1, max_length=100)
+    category: str = Field(min_length=1, max_length=80)
+    transaction_type: str | None = Field(default=None, max_length=40)
+    confirm: bool = False
+    create_rule: bool = False
+
+
+def _batch_preview(conn, labels: list[str]) -> dict:
+    labels = sorted({label.strip() for label in labels if label and label.strip()})
+    if not labels:
+        return {'normalized_labels': [], 'pending_count': 0, 'net_amount_cents': 0, 'debit_count': 0, 'credit_count': 0, 'groups': []}
+    placeholders = ','.join('?' for _ in labels)
+    rows = conn.execute(
+        f"""
+        SELECT t.id,t.booking_date,t.amount_cents,t.label,t.category,
+               t.transaction_type,t.is_internal_transfer,m.import_id,m.normalized_label
+        FROM transaction_import_meta m
+        JOIN transactions t ON t.id=m.transaction_id
+        WHERE m.review_status='needs_review' AND m.normalized_label IN ({placeholders})
+        ORDER BY t.booking_date DESC,t.id DESC
+        """,
+        labels,
+    ).fetchall()
+    movements = [dict(row) for row in rows]
+    groups = {}
+    for row in movements:
+        groups.setdefault(row['normalized_label'], 0)
+        groups[row['normalized_label']] += 1
+    return {
+        'normalized_labels': labels,
+        'pending_count': len(movements),
+        'net_amount_cents': sum(int(row['amount_cents']) for row in movements),
+        'debit_count': sum(1 for row in movements if int(row['amount_cents']) < 0),
+        'credit_count': sum(1 for row in movements if int(row['amount_cents']) > 0),
+        'groups': [{'normalized_label': label, 'pending_count': count} for label, count in sorted(groups.items())],
+        'movements': movements,
+    }
+
+
+@router.post('/api/imports/inbox/group-review/batch')
+def review_import_groups_batch(payload: BatchGroupReviewIn):
+    category = payload.category.strip()
+    labels = sorted({label.strip() for label in payload.normalized_labels if label and label.strip()})
+    if not category or not labels:
+        raise HTTPException(400, 'Les groupes et la catégorie sont obligatoires')
+
+    with connection() as conn:
+        ensure_import_schema(conn)
+        preview = _batch_preview(conn, labels)
+        if preview['pending_count'] == 0:
+            raise HTTPException(404, 'Aucun mouvement en revue pour ces groupes')
+
+        if not payload.confirm:
+            return {
+                'ok': False,
+                'requires_confirmation': True,
+                'preview': preview,
+                'applied': 0,
+                'read_only': True,
+            }
+
+        transaction_type = payload.transaction_type or (
+            'income' if preview['credit_count'] and not preview['debit_count'] else 'expense'
+        )
+        internal = int(transaction_type == 'transfer' or category == 'Transfert interne')
+        placeholders = ','.join('?' for _ in labels)
+        conn.execute(
+            f"""
+            UPDATE transactions
+            SET category=?,transaction_type=?,is_internal_transfer=?
+            WHERE id IN (
+                SELECT t.id
+                FROM transaction_import_meta m
+                JOIN transactions t ON t.id=m.transaction_id
+                WHERE m.review_status='needs_review' AND m.normalized_label IN ({placeholders})
+            )
+            """,
+            (category, transaction_type, internal, *labels),
+        )
+        conn.execute(
+            f"""
+            UPDATE transaction_import_meta
+            SET review_status='accepted'
+            WHERE review_status='needs_review' AND normalized_label IN ({placeholders})
+            """,
+            labels,
+        )
+        refresh_review_counts(conn)
+        return {
+            'ok': True,
+            'requires_confirmation': False,
+            'preview': preview,
+            'applied': preview['pending_count'],
+            'remaining_pending': 0,
+            'category': category,
+            'transaction_type': transaction_type,
+            'is_internal_transfer': bool(internal),
+            'read_only': False,
+        }
