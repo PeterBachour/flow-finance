@@ -29,9 +29,9 @@ def _ensure_recurring_columns(conn: sqlite3.Connection) -> None:
 
 
 def exit_code(result: dict, fail_on_hard: bool = False) -> int:
-    if fail_on_hard:
-        return 1 if int(result.get('hard_issue_count', 0)) > 0 else 0
-    return exit_code(result, args.fail_on_hard)
+    if not fail_on_hard:
+        return 0
+    return 1 if int(result.get('hard_issue_count', 0)) > 0 else 0
 
 
 def main() -> int:

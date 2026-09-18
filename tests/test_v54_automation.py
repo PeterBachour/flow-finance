@@ -49,3 +49,4 @@ def test_scheduled_audit_exit_code_ignores_reviews_but_fails_on_hard_issues():
     hard_failure = {'status': 'warning', 'hard_issue_count': 1}
     assert exit_code(review, fail_on_hard=True) == 0
     assert exit_code(hard_failure, fail_on_hard=True) == 1
+    assert exit_code(hard_failure, fail_on_hard=False) == 0
