@@ -1,3 +1,9 @@
+## 6.4.9 - 2026-09-18
+
+- Le mois affiche maintenant le solde estimé en fin de mois.
+- Calcul explicite à partir du solde réel, des flux enregistrés et des prévisions restantes.
+- Suppression de l'ambiguïté avec l'ancien solde revenus moins dépenses.
+
 ## 6.4.8 - 2026-09-18
 
 - Ajout d'une projection des impôts sur les quatre prochains mois.
