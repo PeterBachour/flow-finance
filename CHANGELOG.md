@@ -1,3 +1,8 @@
+## 6.4.16 - 2026-09-18
+
+- Correction du rendu de la carte Revue groupée dans Mouvements.
+- Synchronisation du cache PWA.
+
 ## 6.4.15 - 2026-09-18
 
 - Revue groupée conservée visible même si une source de données échoue.
