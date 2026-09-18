@@ -376,3 +376,18 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 
 
 .tax-planning{background:linear-gradient(145deg,var(--surface),color-mix(in srgb,var(--mint) 28%,var(--surface)))}.tax-planning>.form-label{max-width:260px;margin-top:14px}.tax-list{display:grid;gap:0;margin-top:14px}.tax-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.tax-row strong,.tax-row small{display:block}.tax-row small{margin-top:4px;color:var(--muted);font-size:.7rem}.tax-row .money{align-self:center}.tax-total{display:flex;justify-content:space-between;gap:12px;padding-top:14px;margin-top:4px;font-weight:850}.tax-total strong{color:var(--bad)}
+
+
+/* Grouped import review controls. */
+.group-review-batch{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin:14px 0}
+.group-review-list{display:grid;gap:8px}
+.group-review-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--surface-raised)}
+.group-review-row input{width:20px;min-height:20px;accent-color:var(--teal)}
+.group-review-row strong,.group-review-row small{display:block}
+.group-review-row small{margin-top:3px;color:var(--muted);font-size:.68rem;line-height:1.35}
+@media(max-width:390px){
+  .group-review-batch{grid-template-columns:1fr 1fr}
+  .group-review-batch button{grid-column:1/-1}
+  .group-review-row{grid-template-columns:auto minmax(0,1fr)}
+  .group-review-row .group-review-apply{grid-column:2;width:100%}
+}
