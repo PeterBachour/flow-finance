@@ -1,3 +1,9 @@
+## 6.4.7 - 2026-09-18
+
+- Sélecteur de mois ajouté directement dans Mouvements.
+- Confirmation des suggestions de marchands rendue fonctionnelle.
+- Rechargement automatique des données après validation d'une suggestion.
+
 ## 6.4.6 - 2026-09-18
 
 - Alignement des montants et actions dans les récurrences de Planifier.
