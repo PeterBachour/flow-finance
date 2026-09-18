@@ -1,3 +1,9 @@
+## 6.4.12 - 2026-09-18
+
+- Ajout des prélèvements fiscaux dans les prochaines échéances.
+- Échéances fiscales visibles dans Accueil et Planifier.
+- Suppression de l'ancien calcul fiscal générique.
+
 ## 6.4.11 - 2026-09-18
 
 - Échéancier fiscal aligné sur les quatre prélèvements réels.
