@@ -1,3 +1,9 @@
+## 6.4.15 - 2026-09-18
+
+- Revue groupée conservée visible même si une source de données échoue.
+- Affichage explicite de l'indisponibilité de l'API des groupes.
+- Renouvellement forcé du cache PWA.
+
 ## 6.4.14 - 2026-09-18
 
 - Ajout d'un aperçu obligatoire avant validation groupée des mouvements importés.
