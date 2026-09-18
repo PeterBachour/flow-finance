@@ -1,3 +1,9 @@
+## 6.4.18 - 2026-09-18
+
+- Ajout d'une modal mobile pour prévisualiser les validations groupées.
+- Confirmation explicite avant modification des mouvements sélectionnés.
+- Synchronisation complète du cache PWA avec la version 6.4.18.
+
 ## 6.4.17 - 2026-09-18
 
 - Ajout de la sélection de plusieurs groupes dans la revue des imports.
