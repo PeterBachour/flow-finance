@@ -1,11 +1,11 @@
 {
   "releases": [
     {
-      "version": "6.4.18",
-      "date": "2026-09-18",
-      "title": "Flow V6.4.18 - Aperçu modal des validations groupées",
+      "version": "6.4.19",
+      "date": "2026-09-19",
+      "title": "Flow V6.4.19 - Projection Planifier corrigée",
       "highlights": [
-        "Aperçu structuré de la sélection avant toute modification",
+        "Calcul Planifier aligné sur le forecast réel",
         "Détail des groupes, mouvements, débits, crédits et impact net",
         "Confirmation explicite dans une modal adaptée au mobile"
       ]
