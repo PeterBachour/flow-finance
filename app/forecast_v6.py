@@ -145,10 +145,10 @@ def _dated_events(conn, *, as_of: date, horizon_end: date) -> tuple[list[dict], 
 
     recurring_rows = conn.execute(
         '''SELECT id,label,amount_cents,usual_day,day_of_month,next_expected_date,last_seen_date,
-                  source_type,tolerance_cents,category,kind,certainty
+                  source_type,tolerance_cents,category,kind,certainty,validation_status
            FROM recurring_transactions
            WHERE is_active=1
-             AND detection_status='accepted'
+             AND (detection_status='accepted' OR validation_status='confirmed')
              AND amount_cents<0
              AND COALESCE(kind,'commitment') IN ('commitment','transfer')
            ORDER BY id'''
