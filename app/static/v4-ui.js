@@ -78,7 +78,7 @@
       const verified=dashboard.forecast||{},account=dashboard.accounts?.[0]||{},verifiedIncome=verified.next_income;
       const certified=safeToSpend||{},components=certified.components||{},certifiedSafe=certified.safe_to_spend||{},realistic=trajectory?.scenarios?.realistic||{},overviewSafe=overview.cockpit?.safe_to_spend||{},health=overview.health||{},explanation=overviewSafe.explanation||{};
       const certifiedEvents=(realistic.timeline||[]).flatMap(day=>day.events||[]);
-      const confirmedOutflows=certifiedEvents.filter(event=>Number(event.amount_cents)<0);
+      const confirmedOutflows=certifiedEvents.filter(event=>Number(event.amount_cents)<0).map(event=>({...event,due_date:event.due_date||event.date}));
       const nextRecurring=(recurring||[]).filter(item=>Number(item.is_active)!==0&&Number(item.amount_cents)<0).map(item=>({...item,due_date:item.next_occurrence||item.next_expected_date||null})).filter(item=>item.due_date);
       const cockpit={
         ...(overview.cockpit||{}),
