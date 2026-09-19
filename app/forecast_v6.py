@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import calendar
 from datetime import date, timedelta
+from statistics import median
 
 from .certified_safe_to_spend import build_certified_safe_to_spend
 from .forecast import _historical_variable_daily_rate
@@ -12,6 +13,32 @@ from .safe_to_spend import (
     _table_exists,
     recurring_is_fresh,
 )
+
+
+def _next_salary_event(conn, *, salary_date: date) -> dict | None:
+    if not (_table_exists(conn, 'payroll_transaction_matches') and _table_exists(conn, 'payroll_records')):
+        return None
+    rows = conn.execute(
+        '''SELECT t.amount_cents
+           FROM payroll_transaction_matches m
+           JOIN payroll_records p ON p.id=m.payroll_record_id
+           JOIN transactions t ON t.id=m.transaction_id
+           WHERE t.amount_cents>0
+           ORDER BY t.booking_date DESC,t.id DESC
+           LIMIT 6'''
+    ).fetchall()
+    amounts = [int(row['amount_cents'] or 0) for row in rows if int(row['amount_cents'] or 0) > 0]
+    if len(amounts) < 3:
+        return None
+    amount = int(round(median(amounts)))
+    return {
+        'date': salary_date.isoformat(),
+        'amount_cents': amount,
+        'label': 'Salaire attendu',
+        'kind': 'structuring_income',
+        'certainty': 'expected',
+        'source': 'historical_salary_pattern',
+    }
 
 
 def _scenario(
@@ -123,8 +150,7 @@ def _dated_events(conn, *, as_of: date, horizon_end: date) -> tuple[list[dict], 
            WHERE is_active=1
              AND detection_status='accepted'
              AND amount_cents<0
-             AND COALESCE(kind,'commitment')='commitment'
-             AND COALESCE(category,'')<>'Transfert interne'
+             AND COALESCE(kind,'commitment') IN ('commitment','transfer')
            ORDER BY id'''
     ).fetchall()
     for row in recurring_rows:
@@ -145,14 +171,17 @@ def _dated_events(conn, *, as_of: date, horizon_end: date) -> tuple[list[dict], 
                 continue
             if _cycle_overlaps_recurring(cycle_rows, row, occurrence, cycle_month):
                 continue
-            realistic.append({
+            event = {
                 'date': occurrence.isoformat(),
                 'amount_cents': int(row['amount_cents'] or 0),
                 'label': row['label'],
                 'kind': row['kind'],
                 'certainty': row['certainty'] or 'expected',
                 'source': 'recurring',
-            })
+            }
+            realistic.append(event)
+            if row['kind'] == 'transfer' and row['certainty'] == 'confirmed':
+                confirmed.append(event)
     return confirmed, realistic
 
 
@@ -171,8 +200,17 @@ def build_v6_daily_trajectory(
     )
     observed = date.fromisoformat(certified['as_of'])
     horizon_end = date.fromisoformat(certified['horizon']['end'])
+    trajectory_horizon_end = horizon_end
+    next_salary_date = certified['horizon'].get('next_salary_date')
+    salary_event = None
+    if next_salary_date:
+        salary_date = date.fromisoformat(next_salary_date)
+        trajectory_horizon_end = max(horizon_end, salary_date + timedelta(days=7))
+        salary_event = _next_salary_event(conn, salary_date=salary_date)
     opening = int(certified['components']['current_balance_cents'])
-    confirmed, realistic_events = _dated_events(conn, as_of=observed, horizon_end=horizon_end)
+    confirmed, realistic_events = _dated_events(conn, as_of=observed, horizon_end=trajectory_horizon_end)
+    if salary_event:
+        realistic_events.append(salary_event)
 
     variable_daily, variable_confidence, history_rows = _historical_variable_daily_rate(conn, observed, 6)
     uncertainty_rate = 15 if variable_confidence == 'medium' else 30
@@ -183,15 +221,15 @@ def build_v6_daily_trajectory(
     protected = safety + goals
 
     engaged = _scenario(
-        name='engaged', as_of=observed, horizon_end=horizon_end, opening_cents=opening,
+        name='engaged', as_of=observed, horizon_end=trajectory_horizon_end, opening_cents=opening,
         events=confirmed, variable_daily_cents=0, protected_cents=protected,
     )
     realistic = _scenario(
-        name='realistic', as_of=observed, horizon_end=horizon_end, opening_cents=opening,
+        name='realistic', as_of=observed, horizon_end=trajectory_horizon_end, opening_cents=opening,
         events=realistic_events, variable_daily_cents=variable_daily, protected_cents=protected,
     )
     prudent = _scenario(
-        name='prudent', as_of=observed, horizon_end=horizon_end, opening_cents=opening,
+        name='prudent', as_of=observed, horizon_end=trajectory_horizon_end, opening_cents=opening,
         events=realistic_events, variable_daily_cents=prudent_daily, protected_cents=protected,
     )
 
@@ -226,7 +264,8 @@ def build_v6_daily_trajectory(
         ],
         'controls': {
             'planned_recurring_deduplicated': True,
-            'internal_transfers_excluded': True,
+            'internal_transfers_excluded_from_analytics': True,
+            'internal_transfers_in_cash_trajectory': True,
             'stale_recurrences_excluded': True,
             'safety_reserve_is_not_an_outflow': True,
             'read_only': True,
