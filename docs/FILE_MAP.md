@@ -26,7 +26,7 @@
 - `app/forecast.py` : projection de trésorerie.
 - `app/monthly_finance.py` : calculs mensuels.
 - `app/trend_engine.py` : tendances.
-- `app/financial_integrity.py` : contrôles comptables.
+- `app/financial_integrity.py` : contrôles comptables et continuité des périodes de relevés.
 - `app/financial_intelligence.py` et `app/data_intelligence.py` : analyses et insights.
 - `app/commitment_engine.py` : engagements.
 - `app/v5_engine.py`, `app/v5_planning.py`, `app/v5_predictive.py`, `app/v5_recommendations.py` : cockpit V5.
