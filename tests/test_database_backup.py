@@ -1,8 +1,6 @@
 import sqlite3
 from pathlib import Path
 
-import pytest
-
 from maintenance.backup_flow_database import create_backup, main
 
 
