@@ -53,7 +53,8 @@ def _statement_continuity(statements: list[dict]) -> dict:
                     elif start_date > previous_end_date + timedelta(days=1):
                         gaps.append({'account_id':account_id,'previous_import_id':previous['import_id'],'import_id':item['import_id'],'missing_from':expected_start,'missing_through':(start_date-timedelta(days=1)).isoformat()})
                     if (
-                        previous.get('closing_balance_cents') is not None
+                        start_date == previous_end_date + timedelta(days=1)
+                        and previous.get('closing_balance_cents') is not None
                         and item.get('opening_balance_cents') is not None
                         and int(previous['closing_balance_cents']) != int(item['opening_balance_cents'])
                     ):
