@@ -54,7 +54,8 @@ def create_backup(database: Path, backup_dir: Path, *, apply: bool = False) -> d
                 if integrity != 'ok':
                     raise sqlite3.DatabaseError(f'Backup integrity check failed: {integrity}')
         os.chmod(temp_path, 0o600)
-        os.replace(temp_path, destination)
+        os.link(temp_path, destination)
+        temp_path.unlink()
         temp_path = None
         return {
             'status': 'created',
