@@ -2,7 +2,7 @@
 
 - Audit en lecture seule des périodes de relevés par compte.
 - Signalement des lacunes de dates, chevauchements et ruptures entre soldes de clôture et d'ouverture.
-- Ajout de tests de non-régression pour ces anomalies.
+- Ajout de tests de non-régression pour ces anomalies, dont un mois complet manquant sans faux écart de solde.
 
 ## 6.4.18 - 2026-09-18
 
