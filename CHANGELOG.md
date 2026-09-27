@@ -1,8 +1,9 @@
-## Unreleased — Fiabilité des prévisions
+## 6.4.20 — Fiabilité des prévisions
 
-- Ajout d'une capture explicite et immuable des trajectoires quotidiennes V6.
-- Ajout d'une comparaison en lecture seule aux soldes de relevés confirmés, par scénario et date.
-- Les dates sans relevé complet pour tous les comptes inclus sont exclues des erreurs.
+- Ajout d'une comparaison visuelle entre projections quotidiennes et soldes confirmés de relevés.
+- Affichage des erreurs moyennes pour les scénarios engagé, réaliste et prudent.
+- Mesures masquées explicitement tant que les relevés ne couvrent pas les dates projetées.
+- Cache PWA renouvelé pour charger le nouvel écran.
 
 ## Unreleased — Contrôle de continuité des relevés
 
