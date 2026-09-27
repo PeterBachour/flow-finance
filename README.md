@@ -93,12 +93,21 @@ Les documents sources ne doivent pas être ajoutés au dépôt Git. Les relevés
 - Les captures sont immuables pour une date donnée et ne contiennent que les soldes journaliers projetés, sans libellés de mouvements.
 - `GET /api/v6/forecast-accuracy` compare les projections enregistrées aux soldes de relevés confirmés à la même date.
 - Une date est exclue si un compte inclus dans la prévision ne possède pas de solde bancaire confirmé ce jour-là.
-- Pour alimenter l'historique, appeler le point de capture une fois par jour, par exemple depuis une tâche planifiée sur le Raspberry Pi.
-
-Exemple de capture manuelle :
+- Le service systemd installé par `./install-update-helper.sh` lance une capture chaque jour vers 23 h 50, selon l'heure locale du Raspberry Pi.
+- La tâche utilise un conteneur temporaire Docker Compose et transmet explicitement la date locale à capturer. Elle ne dépend pas de l'ouverture de l'application.
+- Les captures sont idempotentes. Si la prévision n'est pas disponible, la tâche échoue sans écrire de snapshot et l'erreur apparaît dans le journal systemd.
+- Une capture manuelle reste possible :
 
 ```bash
-curl -X POST http://localhost:8010/api/v6/forecast-snapshots/capture
+cd /home/pi/flow-finance
+./maintenance/capture_daily_forecast.sh
+```
+
+État de la tâche :
+
+```bash
+systemctl status flow-finance-forecast-capture.timer --no-pager
+journalctl -u flow-finance-forecast-capture.service -n 50 --no-pager
 ```
 
 ### Qualité et intégrité des données
