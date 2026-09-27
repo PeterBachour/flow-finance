@@ -38,12 +38,14 @@ def main() -> int:
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     try:
-        # Audit commands must not create tables or alter the user's database.\n        result = build_financial_integrity(
+        # Audit commands must not create tables or alter the user's database.
+        result = build_financial_integrity(
             conn,
             as_of=args.as_of,
             months=max(1, min(args.months, 36)),
         )
-        conn.rollback()\n    finally:
+        conn.rollback()
+    finally:
         conn.close()
 
     if args.as_json:
