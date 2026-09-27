@@ -273,6 +273,8 @@ chmod +x install-update-helper.sh
 
 Le service de maintenance doit rester séparé du conteneur principal. Une mise à jour doit construire et tester la nouvelle image avant de remplacer le runtime actif.
 
+Le script installe aussi une sauvegarde SQLite quotidienne vers 03 h 15 dans `../flow-finance-backups/`. Les sauvegardes sont vérifiées et conservées hors du dépôt. Voir [`docs/DATABASE_BACKUPS.md`](docs/DATABASE_BACKUPS.md) pour contrôler le timer et l'espace disque.
+
 ## Tests et contrôles
 
 Installation locale :
@@ -387,4 +389,5 @@ Les réponses API de diagnostic ne doivent jamais exposer de secret. Les donnée
 - `CHANGELOG.md` : historique des versions ;
 - `RELEASE_V1.md` et `RELEASE_V2.md` : jalons historiques ;
 - `docs/FILE_MAP.md` : orientation rapide dans le code ;
+- `docs/DATABASE_BACKUPS.md` : sauvegarde SQLite locale, vérification et procédure de restauration manuelle.
 - `AGENTS.md` : règles obligatoires pour les agents et contributeurs.

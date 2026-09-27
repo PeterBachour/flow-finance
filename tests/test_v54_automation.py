@@ -34,7 +34,10 @@ def test_installer_enables_read_only_daily_audit_timer():
     assert 'flow-finance-audit.timer' in source
     assert 'OnCalendar=*-*-* 04:15:00' in source
     assert 'audit_financial_integrity.py --db /data/flow.db --fail-on-hard' in source
-    assert '--apply' not in source
+    audit_start = source.index('sudo tee "$AUDIT_SERVICE"')
+    audit_end = source.index('sudo tee "$BACKUP_SERVICE"', audit_start)
+    audit_unit = source[audit_start:audit_end]
+    assert '--apply' not in audit_unit
 
 
 

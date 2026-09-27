@@ -28,6 +28,7 @@ command -v docker >/dev/null || { echo "Erreur: docker introuvable." >&2; exit 1
 docker compose version >/dev/null
 
 sudo install -d -o "$USER_NAME" -g "$GROUP_NAME" "$MAINT_DIR"
+sudo install -d -o "$USER_NAME" -g "$GROUP_NAME" -m 0700 "$BACKUP_DIR"
 chmod 0755 "$HELPER" "$FORECAST_SCRIPT"
 
 sudo tee "$SERVICE" >/dev/null <<EOF
@@ -102,6 +103,37 @@ Unit=flow-finance-forecast-capture.service
 WantedBy=timers.target
 EOF
 
+sudo tee "$BACKUP_SERVICE" >/dev/null <<EOF
+[Unit]
+Description=Create and verify Flow Finance SQLite backup
+After=docker.service
+ConditionPathExists=$FLOW_DIR/data/flow.db
+
+[Service]
+Type=oneshot
+User=$USER_NAME
+Group=$GROUP_NAME
+WorkingDirectory=$FLOW_DIR
+ExecStart=/usr/bin/python3 "$BACKUP_SCRIPT" --db "$FLOW_DIR/data/flow.db" --backup-dir "$BACKUP_DIR" --apply
+TimeoutStartSec=10min
+Nice=10
+IOSchedulingClass=idle
+EOF
+
+sudo tee "$BACKUP_TIMER" >/dev/null <<EOF
+[Unit]
+Description=Create a daily Flow Finance database backup
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=flow-finance-backup.service
+
+[Install]
+WantedBy=timers.target
+EOF
+
 sudo tee "$AUDIT_TIMER" >/dev/null <<EOF
 [Unit]
 Description=Run Flow Finance financial audit every day
@@ -120,11 +152,14 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now flow-finance-update.service
 sudo systemctl restart flow-finance-update.service
 sudo systemctl enable --now flow-finance-audit.timer
+sudo systemctl enable --now flow-finance-backup.timer
 sudo systemctl enable --now flow-finance-forecast-capture.timer
 
 echo "Flow update helper installé depuis le repo: $HELPER"
 echo "Service: flow-finance-update.service"
 echo "Tests: recette pytest complète avant chaque redémarrage"
 echo "Audit: flow-finance-audit.timer, quotidien à partir de 04:15"
+echo "Sauvegarde SQLite: flow-finance-backup.timer, quotidien vers 03:15"
+echo "Dossier des sauvegardes: $BACKUP_DIR"
 echo "Capture des prévisions: flow-finance-forecast-capture.timer, quotidien vers 23:50"
 echo "État: sudo systemctl status flow-finance-update.service --no-pager"
