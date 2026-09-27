@@ -34,6 +34,20 @@ python3 maintenance/backup_flow_database.py \
 
 Le message de réussite indique le chemin, la taille et le résultat d'intégrité, sans afficher de soldes ou de mouvements.
 
+## Automatisation sur Raspberry Pi
+
+Le script `install-update-helper.sh` installe aussi `flow-finance-backup.timer`. Il lance la sauvegarde chaque jour vers 03 h 15, à l'heure locale du Raspberry Pi. La tâche utilise le script en mode `--apply`, écrit dans le dossier frère `/home/pi/flow-finance-backups` et ne supprime aucune ancienne copie. Les sauvegardes s'accumulent; vérifie périodiquement l'espace disponible.
+
+Après installation :
+
+```bash
+systemctl status flow-finance-backup.timer --no-pager
+journalctl -u flow-finance-backup.service -n 50 --no-pager
+du -sh /home/pi/flow-finance-backups
+```
+
+Le timer rattrape une échéance manquée au prochain démarrage. La sauvegarde reste locale au Pi; copie-la régulièrement vers un support séparé pour couvrir une panne ou une perte de l'appareil.
+
 ## Vérifier une copie
 
 ```bash
