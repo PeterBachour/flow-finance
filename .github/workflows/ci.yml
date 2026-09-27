@@ -36,6 +36,12 @@ jobs:
       - name: Compile application
         run: python -m compileall -q app maintenance tests
 
+      - name: Validate active frontend JavaScript
+        run: node --check app/static/v4-ui.js
+
+      - name: Validate installation script syntax
+        run: bash -n install-update-helper.sh
+
       - name: Run test suite
         env:
           FLOW_DB_PATH: ${{ runner.temp }}/flow-ci.db
