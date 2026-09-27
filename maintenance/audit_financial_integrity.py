@@ -13,19 +13,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.financial_integrity import build_financial_integrity
-from app.imports import ensure_import_schema
-
-
-def _ensure_recurring_columns(conn: sqlite3.Connection) -> None:
-    columns = {row['name'] for row in conn.execute('PRAGMA table_info(recurring_transactions)').fetchall()}
-    for name, sql_type in {
-        'usual_day': 'INTEGER',
-        'next_expected_date': 'TEXT',
-        'last_seen_date': 'TEXT',
-        "detection_status": "TEXT NOT NULL DEFAULT 'accepted'",
-    }.items():
-        if name not in columns:
-            conn.execute(f'ALTER TABLE recurring_transactions ADD COLUMN {name} {sql_type}')
 
 
 def exit_code(result: dict, fail_on_hard: bool = False) -> int:
@@ -51,15 +38,12 @@ def main() -> int:
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     try:
-        ensure_import_schema(conn)
-        _ensure_recurring_columns(conn)
-        result = build_financial_integrity(
+        # Audit commands must not create tables or alter the user's database.\n        result = build_financial_integrity(
             conn,
             as_of=args.as_of,
             months=max(1, min(args.months, 36)),
         )
-        conn.commit()
-    finally:
+        conn.rollback()\n    finally:
         conn.close()
 
     if args.as_json:
