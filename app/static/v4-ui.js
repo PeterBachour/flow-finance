@@ -84,13 +84,13 @@
       const bias=Number(result.mean_error_cents||0);
       const biasLabel=bias>0?'solde prévu supérieur au relevé':bias<0?'solde prévu inférieur au relevé':'écart moyen nul';
       return `<article class="accuracy-mode"><div class="accuracy-mode-head"><strong>${label}</strong><span>${Number(result.comparison_count||0)} comparaison(s)</span></div><p class="accuracy-error-label">Erreur moyenne absolue</p><strong class="accuracy-error">${euro(result.mean_absolute_error_cents)}</strong><small>${biasLabel} · ${euro(Math.abs(bias))}</small></article>`;
-    }).join(''):'<div class="empty-state">Aucune comparaison fiable disponible pour l’instant.</div>';
+    }).join(''):'<div class="empty-state">Aucune comparaison fiable disponible pour le moment.</div>';
     const detail=hasResults
       ?'Une erreur plus faible signifie que le solde projeté était plus proche du relevé confirmé.'
       :Number(data?.snapshot_count||0)>0
         ?'Les prévisions sont enregistrées, mais aucun relevé confirmé ne correspond encore à leurs dates projetées.'
         :'Aucune prévision enregistrée dans la période analysée.';
-    return `<section class="card forecast-accuracy" aria-labelledby="forecastAccuracyTitle"><div class="section-head"><div><p class="eyebrow">Fiabilité des prévisions</p><h2 id="forecastAccuracyTitle">Prévu et constaté</h2></div><span class="confidence-pill">${Number(data?.snapshot_count||0)} capture(s)</span></div><p class="subtle">Comparaison aux soldes confirmés des relevés. ${esc(detail)}</p>${hasResults?`<div class="forecast-accuracy-grid">${rows}</div><p class="accuracy-footnote">L’écart moyen affiché correspond à la différence entre le solde prévu et le solde du relevé.</p>`:rows}</section>`;
+    return `<section class="card forecast-accuracy" aria-labelledby="forecastAccuracyTitle"><div class="section-head"><div><p class="eyebrow">Fiabilité des prévisions</p><h2 id="forecastAccuracyTitle">Prévu et constaté</h2></div><span class="confidence-pill">${Number(data?.snapshot_count||0)} capture(s)</span></div><p class="subtle">Comparaison aux soldes confirmés des relevés. ${esc(detail)}</p>${hasResults?`<div class="forecast-accuracy-grid">${rows}</div><p class="accuracy-footnote">La différence moyenne affichée correspond à l’écart entre le solde prévu et le solde du relevé.</p>`:rows}</section>`;
   }
 
   async function renderHome(){
