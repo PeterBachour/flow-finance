@@ -387,4 +387,5 @@ Les réponses API de diagnostic ne doivent jamais exposer de secret. Les donnée
 - `CHANGELOG.md` : historique des versions ;
 - `RELEASE_V1.md` et `RELEASE_V2.md` : jalons historiques ;
 - `docs/FILE_MAP.md` : orientation rapide dans le code ;
+- `docs/DATABASE_BACKUPS.md` : sauvegarde SQLite locale, vérification et procédure de restauration manuelle.
 - `AGENTS.md` : règles obligatoires pour les agents et contributeurs.
