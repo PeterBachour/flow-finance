@@ -171,3 +171,36 @@ def test_statement_audit_detects_gaps_overlaps_and_balance_breaks(tmp_path: Path
     assert continuity['read_only'] is True
     assert result['statement_audit']['summary']['period_gap_count'] == 1
     conn.close()
+
+
+
+def test_statement_continuity_identifies_full_missing_month_without_balance_false_positive():
+    from app.financial_integrity import _statement_continuity
+
+    result = _statement_continuity([
+        {
+            'account_id': 1,
+            'import_id': 101,
+            'period_start': '2025-09-01',
+            'period_end': '2025-09-30',
+            'opening_balance_cents': 200000,
+            'closing_balance_cents': 220000,
+        },
+        {
+            'account_id': 1,
+            'import_id': 102,
+            'period_start': '2025-11-01',
+            'period_end': '2025-11-28',
+            'opening_balance_cents': 195000,
+            'closing_balance_cents': 210000,
+        },
+    ])
+
+    assert result['gaps'] == [{
+        'account_id': 1,
+        'previous_import_id': 101,
+        'import_id': 102,
+        'missing_from': '2025-10-01',
+        'missing_through': '2025-10-31',
+    }]
+    assert result['balance_break_count'] == 0
