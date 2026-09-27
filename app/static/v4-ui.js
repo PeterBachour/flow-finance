@@ -90,7 +90,7 @@
       :Number(data?.snapshot_count||0)>0
         ?'Les prévisions sont enregistrées, mais aucun relevé confirmé ne correspond encore à leurs dates projetées.'
         :'Aucune prévision enregistrée dans la période analysée.';
-    return `<section class="card forecast-accuracy" aria-labelledby="forecastAccuracyTitle"><div class="section-head"><div><p class="eyebrow">Fiabilité des prévisions</p><h2 id="forecastAccuracyTitle">Prévu et constaté</h2></div><span class="confidence-pill">${Number(data?.snapshot_count||0)} capture(s)</span></div><p class="subtle">Comparaison aux soldes confirmés des relevés. ${esc(detail)}</p>${hasResults?`<div class="forecast-accuracy-grid">${rows}</div><p class="accuracy-footnote">La différence moyenne affichée correspond à l’écart entre le solde prévu et le solde du relevé.</p>`:rows}</section>`;
+    return `<section class="card forecast-accuracy" aria-labelledby="forecastAccuracyTitle"><div class="section-head"><div><p class="eyebrow">Fiabilité des prévisions</p><h2 id="forecastAccuracyTitle">Prévu et constaté</h2></div><span class="confidence-pill">${Number(data?.snapshot_count||0)} capture(s)</span></div><p class="subtle">Comparaison aux soldes confirmés des relevés. ${esc(detail)}</p>${hasResults?`<div class="forecast-accuracy-grid">${rows}</div><p class="accuracy-footnote">La valeur moyenne affichée indique la différence entre le solde prévu et le solde du relevé.</p>`:rows}</section>`;
   }
 
   async function renderHome(){
