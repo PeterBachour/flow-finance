@@ -66,6 +66,7 @@ Les anciens fichiers versionnés restent présents pour compatibilité ou histor
 - `maintenance/audit_history_coverage.py` : audit de couverture.
 - `maintenance/reconcile_import_reviews.py` : rapprochement des revues, dry-run par défaut.
 - `maintenance/backfill_statement_balance_snapshots.py` : reconstruction idempotente des snapshots.
+- `maintenance/backup_flow_database.py` : sauvegarde SQLite vérifiée, dry-run par défaut et écriture explicite.
 - `maintenance/capture_forecast_snapshot.py` : capture explicite et idempotente des prévisions quotidiennes.
 - `maintenance/capture_daily_forecast.sh` : déclenchement local via Docker Compose pour la tâche systemd.
 
