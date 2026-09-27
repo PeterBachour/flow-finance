@@ -1,3 +1,9 @@
+## Unreleased — Fiabilité des prévisions
+
+- Ajout d'une capture explicite et immuable des trajectoires quotidiennes V6.
+- Ajout d'une comparaison en lecture seule aux soldes de relevés confirmés, par scénario et date.
+- Les dates sans relevé complet pour tous les comptes inclus sont exclues des erreurs.
+
 ## Unreleased — Contrôle de continuité des relevés
 
 - Audit en lecture seule des périodes de relevés par compte.
@@ -124,7 +130,15 @@
 - Interface mobile `Comprendre ce montant`.
 - Lecture seule et ledger inchangé.
 
-## 6.3.0 — Cockpit prédictif\n\n- Safe to Spend certifié dans le héros d'accueil.\n- Trajectoires engagée, réaliste et prudente jusqu'au prochain salaire.\n- Bande d'incertitude, seuil protégé et détail quotidien interactif.\n- Vues 7 jours et cycle, navigation tactile et clavier.\n- Blocage du montant lorsque le solde bancaire est obsolète.\n\n# Flow Finance — Changelog
+## 6.3.0 — Cockpit prédictif
+
+- Safe to Spend certifié dans le héros d'accueil.
+- Trajectoires engagée, réaliste et prudente jusqu'au prochain salaire.
+- Bande d'incertitude, seuil protégé et détail quotidien interactif.
+- Vues 7 jours et cycle, navigation tactile et clavier.
+- Blocage du montant lorsque le solde bancaire est obsolète.
+
+# Flow Finance — Changelog
 
 ## 6.2.0 — 2026-09-14
 - Ajout d'une trajectoire quotidienne unifiée jusqu'à l'horizon du Safe to Spend.
