@@ -87,6 +87,20 @@ Le calcul protège les échéances planifiées, charges récurrentes, réservati
 
 Les documents sources ne doivent pas être ajoutés au dépôt Git. Les relevés bancaires, fiches de paie et exports contiennent des données personnelles et restent dans les emplacements runtime prévus.
 
+### Fiabilité des prévisions
+
+- La capture `POST /api/v6/forecast-snapshots/capture` enregistre explicitement la première trajectoire valide du jour pour les scénarios engagé, réaliste et prudent.
+- Les captures sont immuables pour une date donnée et ne contiennent que les soldes journaliers projetés, sans libellés de mouvements.
+- `GET /api/v6/forecast-accuracy` compare les projections enregistrées aux soldes de relevés confirmés à la même date.
+- Une date est exclue si un compte inclus dans la prévision ne possède pas de solde bancaire confirmé ce jour-là.
+- Pour alimenter l'historique, appeler le point de capture une fois par jour, par exemple depuis une tâche planifiée sur le Raspberry Pi.
+
+Exemple de capture manuelle :
+
+```bash
+curl -X POST http://localhost:8010/api/v6/forecast-snapshots/capture
+```
+
 ### Qualité et intégrité des données
 
 - contrôle de l'équation comptable des relevés ;
