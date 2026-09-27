@@ -67,6 +67,12 @@ def main() -> int:
         f"arithmetic_errors={statements['arithmetic_error_count']} "
         f"missing_snapshots={statements['missing_balance_snapshot_count']}"
     )
+    continuity = result['statement_audit'].get('continuity', {})
+    print(
+        f"continuity_gaps={continuity.get('gap_count', 0)} "
+        f"overlaps={continuity.get('overlap_count', 0)} "
+        f"balance_breaks={continuity.get('balance_break_count', 0)}"
+    )
     for item in result['statement_audit']['statements']:
         if item['integrity_status'] == 'warning':
             print(
