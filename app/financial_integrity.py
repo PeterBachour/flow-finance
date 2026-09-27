@@ -216,6 +216,7 @@ def _statement_audit(conn) -> dict:
             'missing_balance_snapshot_count': missing_snapshots,\n            'period_gap_count': continuity['gap_count'],\n            'period_overlap_count': continuity['overlap_count'],\n            'balance_continuity_break_count': continuity['balance_break_count'],
         },
         'statements': statements,
+        'continuity': continuity,
     }
 
 
