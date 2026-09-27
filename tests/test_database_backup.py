@@ -1,5 +1,6 @@
 import sqlite3
 from pathlib import Path
+from pathlib import Path
 
 from maintenance.backup_flow_database import create_backup, main
 
@@ -56,3 +57,10 @@ def test_cli_does_not_write_without_apply(tmp_path, capsys):
 def test_backup_refuses_missing_database(tmp_path, capsys):
     assert main(['--db', str(tmp_path / 'missing.db'), '--backup-dir', str(tmp_path / 'backups')]) == 2
     assert 'Source database not found' in capsys.readouterr().err
+
+def test_installer_configures_daily_backup_with_explicit_apply():
+    root = Path(__file__).resolve().parents[1]
+    installer = (root / 'install-update-helper.sh').read_text(encoding='utf-8')
+    assert 'flow-finance-backup.timer' in installer
+    assert 'OnCalendar=*-*-* 03:15:00' in installer
+    assert '--backup-dir "$BACKUP_DIR" --apply' in installer
