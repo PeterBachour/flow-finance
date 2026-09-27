@@ -147,13 +147,20 @@ def test_statement_audit_detects_gaps_overlaps_and_balance_breaks(tmp_path: Path
         INSERT INTO imports(account_id,filename,source_type,bank,status,period_start,period_end,
                             opening_balance_cents,closing_balance_cents,debit_total_cents,credit_total_cents,quality_status)
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
-    """, (account_id,'september.pdf','pdf','LCL','completed','2026-09-05','2026-09-30',
+    """, (account_id,'september.pdf','pdf','LCL','completed','2026-09-01','2026-09-30',
           125000,125000,0,0,'verified'))
     conn.execute("""
         INSERT INTO imports(account_id,filename,source_type,bank,status,period_start,period_end,
                             opening_balance_cents,closing_balance_cents,debit_total_cents,credit_total_cents,quality_status)
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
-    """, (account_id,'overlap.pdf','pdf','LCL','completed','2026-09-20','2026-10-10',
+    """, (account_id,'october.pdf','pdf','LCL','completed','2026-10-05','2026-10-31',
+          125000,125000,0,0,'verified'))
+
+    conn.execute("""
+        INSERT INTO imports(account_id,filename,source_type,bank,status,period_start,period_end,
+                            opening_balance_cents,closing_balance_cents,debit_total_cents,credit_total_cents,quality_status)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+    """, (account_id,'overlap.pdf','pdf','LCL','completed','2026-10-20','2026-11-10',
           125000,125000,0,0,'verified'))
 
     result = build_financial_integrity(conn, as_of=date(2026,9,10), months=6)
