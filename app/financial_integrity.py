@@ -26,6 +26,45 @@ def _table_exists(conn, name: str) -> bool:
     ).fetchone())
 
 
+def _statement_continuity(statements: list[dict]) -> dict:
+    """Inspect chronological statement periods and balances without changing stored data."""
+    from datetime import timedelta
+
+    by_account: dict[int, list[dict]] = defaultdict(list)
+    for statement in statements:
+        by_account[int(statement['account_id'])].append(statement)
+
+    gaps = []
+    overlaps = []
+    balance_breaks = []
+    for account_id, items in by_account.items():
+        items.sort(key=lambda item: (item.get('period_start') or item.get('period_end') or '', item.get('period_end') or '', item['import_id']))
+        previous = None
+        for item in items:
+            start, end = item.get('period_start'), item.get('period_end')
+            previous_end = previous.get('period_end') if previous else None
+            if previous and start and previous_end:
+                try:
+                    previous_end_date = date.fromisoformat(previous_end)
+                    start_date = date.fromisoformat(start)
+                    expected_start = (previous_end_date + timedelta(days=1)).isoformat()
+                    if start_date <= previous_end_date:
+                        overlaps.append({'account_id':account_id,'previous_import_id':previous['import_id'],'import_id':item['import_id'],'previous_period_end':previous_end,'period_start':start})
+                    elif start_date > previous_end_date + timedelta(days=1):
+                        gaps.append({'account_id':account_id,'previous_import_id':previous['import_id'],'import_id':item['import_id'],'missing_from':expected_start,'missing_through':(start_date-timedelta(days=1)).isoformat()})
+                    if (
+                        previous.get('closing_balance_cents') is not None
+                        and item.get('opening_balance_cents') is not None
+                        and int(previous['closing_balance_cents']) != int(item['opening_balance_cents'])
+                    ):
+                        balance_breaks.append({'account_id':account_id,'previous_import_id':previous['import_id'],'import_id':item['import_id'],'expected_opening_balance_cents':int(previous['closing_balance_cents']),'actual_opening_balance_cents':int(item['opening_balance_cents']),'difference_cents':int(item['opening_balance_cents'])-int(previous['closing_balance_cents'])})
+                except ValueError:
+                    pass
+            previous=item
+
+    return {'status':'review' if gaps or overlaps or balance_breaks else 'ok','gap_count':len(gaps),'overlap_count':len(overlaps),'balance_break_count':len(balance_breaks),'gaps':gaps,'overlaps':overlaps,'balance_breaks':balance_breaks,'read_only':True}
+
+
 def _statement_audit(conn) -> dict:
     if not (_table_exists(conn, 'imports') and _table_exists(conn, 'transaction_import_meta')):
         return {
@@ -149,6 +188,17 @@ def _statement_audit(conn) -> dict:
             'issues': issues,
         })
 
+    continuity = _statement_continuity(statements)
+    for item in statements:
+        if any(item['import_id'] in (entry['import_id'], entry['previous_import_id']) for entry in continuity['overlaps']):
+            item['issues'].append('statement_period_overlap')
+            item['review_issues'].append('statement_period_overlap')
+            item['integrity_status'] = 'reconciled_with_review' if item['documentary_reconciled'] else 'warning'
+        if any(item['import_id'] in (entry['import_id'], entry['previous_import_id']) for entry in continuity['balance_breaks']):
+            item['issues'].append('statement_balance_continuity_mismatch')
+            item['hard_issues'].append('statement_balance_continuity_mismatch')
+            item['integrity_status'] = 'warning'
+
     missing_snapshots = sum(1 for item in statements if 'missing_balance_snapshot' in item['issues'])
     reconciled = sum(1 for item in statements if item['documentary_reconciled'])
     reviews = sum(1 for item in statements if item['integrity_status'] == 'reconciled_with_review')
@@ -156,14 +206,14 @@ def _statement_audit(conn) -> dict:
     arithmetic_errors = sum(1 for item in statements if 'statement_arithmetic_mismatch' in item['issues'])
 
     return {
-        'status': 'ok' if warnings == 0 and reviews == 0 else 'review',
+        'status': 'ok' if warnings == 0 and reviews == 0 and continuity['status'] == 'ok' else 'review',
         'summary': {
             'statement_count': len(statements),
             'reconciled_count': reconciled,
             'review_count': reviews,
             'warning_count': warnings,
             'arithmetic_error_count': arithmetic_errors,
-            'missing_balance_snapshot_count': missing_snapshots,
+            'missing_balance_snapshot_count': missing_snapshots,\n            'period_gap_count': continuity['gap_count'],\n            'period_overlap_count': continuity['overlap_count'],\n            'balance_continuity_break_count': continuity['balance_break_count'],
         },
         'statements': statements,
     }
