@@ -1,6 +1,16 @@
 {
   "releases": [
     {
+      "version": "6.4.20",
+      "date": "2026-09-27",
+      "title": "Flow V6.4.20 - Fiabilité des prévisions",
+      "highlights": [
+        "Comparaison visuelle des soldes prévus aux soldes confirmés des relevés",
+        "Erreur moyenne absolue affichée pour les scénarios engagé, réaliste et prudent",
+        "Aucune mesure affichée sans comparaison confirmée"
+      ]
+    },
+    {
       "version": "6.4.19",
       "date": "2026-09-19",
       "title": "Flow V6.4.19 - Projection Planifier corrigée",

@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.4.19';
+  const VERSION='6.4.20';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -71,10 +71,32 @@
   function nav(name){state.screen=name;qa('.screen').forEach(screen=>screen.classList.toggle('active',screen.dataset.screen===name));qa('.bottom-nav [data-nav]').forEach(button=>{const active=button.dataset.nav===name;button.classList.toggle('active',active);button.setAttribute('aria-current',active?'page':'false');});window.scrollTo({top:0,behavior:'instant'});render(name);}
   function bindNavigation(root=document){root.querySelectorAll('[data-go]').forEach(button=>button.addEventListener('click',()=>nav(button.dataset.go)));root.querySelectorAll('[data-open-settings]').forEach(button=>button.addEventListener('click',openSystem));}
 
+  function forecastAccuracyCard(data){
+    const modes=[
+      ['engaged','Engagée'],
+      ['realistic','Réaliste'],
+      ['prudent','Prudente']
+    ];
+    const comparisons=(data?.modes||{});
+    const hasResults=data?.status==='available';
+    const rows=hasResults?modes.map(([key,label])=>{
+      const result=comparisons[key]||{};
+      const bias=Number(result.mean_error_cents||0);
+      const biasLabel=bias>0?'solde prévu supérieur au relevé':bias<0?'solde prévu inférieur au relevé':'écart moyen nul';
+      return `<article class="accuracy-mode"><div class="accuracy-mode-head"><strong>${label}</strong><span>${Number(result.comparison_count||0)} comparaison(s)</span></div><p class="accuracy-error-label">Erreur moyenne absolue</p><strong class="accuracy-error">${euro(result.mean_absolute_error_cents)}</strong><small>${biasLabel} · ${euro(Math.abs(bias))}</small></article>`;
+    }).join(''):'<div class="empty-state">Aucune comparaison fiable disponible pour le moment.</div>';
+    const detail=hasResults
+      ?'Une erreur plus faible signifie que le solde projeté était plus proche du relevé confirmé.'
+      :Number(data?.snapshot_count||0)>0
+        ?'Les prévisions sont enregistrées, mais aucun relevé confirmé ne correspond encore à leurs dates projetées.'
+        :'Aucune prévision enregistrée dans la période analysée.';
+    return `<section class="card forecast-accuracy" aria-labelledby="forecastAccuracyTitle"><div class="section-head"><div><p class="eyebrow">Fiabilité des prévisions</p><h2 id="forecastAccuracyTitle">Prévu et constaté</h2></div><span class="confidence-pill">${Number(data?.snapshot_count||0)} capture(s)</span></div><p class="subtle">Comparaison aux soldes confirmés des relevés. ${esc(detail)}</p>${hasResults?`<div class="forecast-accuracy-grid">${rows}</div><p class="accuracy-footnote">La valeur moyenne affichée indique la différence entre le solde prévu et le solde du relevé.</p>`:rows}</section>`;
+  }
+
   async function renderHome(){
     const root=q('[data-screen="home"]');root.innerHTML=page('Aujourd’hui',todayLabel(),'Ta situation utile, avant toute décision.')+skeleton();
     try{
-      const [overview,plan,inbox,dashboard,safeToSpend,trajectory,recurring]=await Promise.all([api('/api/v3/overview'),api('/api/v3.4/action-plan?months=3'),api('/api/v3.6/decision-inbox'),api('/api/dashboard'),api('/api/v6/safe-to-spend'),api('/api/v6/trajectory'),api('/api/recurring')]);
+      const [overview,plan,inbox,dashboard,safeToSpend,trajectory,recurring,forecastAccuracy]=await Promise.all([api('/api/v3/overview'),api('/api/v3.4/action-plan?months=3'),api('/api/v3.6/decision-inbox'),api('/api/dashboard'),api('/api/v6/safe-to-spend'),api('/api/v6/trajectory'),api('/api/recurring'),api('/api/v6/forecast-accuracy').catch(()=>null)]);
       const verified=dashboard.forecast||{},account=dashboard.accounts?.[0]||{},verifiedIncome=verified.next_income;
       const certified=safeToSpend||{},components=certified.components||{},certifiedSafe=certified.safe_to_spend||{},realistic=trajectory?.scenarios?.realistic||{},overviewSafe=overview.cockpit?.safe_to_spend||{},health=overview.health||{},explanation=overviewSafe.explanation||{};
       const certifiedEvents=(realistic.timeline||[]).flatMap(day=>day.events||[]);
@@ -111,6 +133,7 @@
       const verifiedForecast=dashboard.forecast||{};
       const nextTransfer=(cockpit.recurring||[]).find(item=>String(item.label||'').toUpperCase().includes('COMPTE COMMUN'));
       root.innerHTML+=`<section class="card forecast-summary"><div class="section-head"><div><p class="eyebrow">Prévision vérifiée</p><h2>Réel et projection séparés</h2></div><span class="confidence-pill">API v6 · ${esc(certified.as_of||dashboard.as_of||'')}</span></div><div class="decision-row"><div><strong>Solde réel</strong><small>Confirmé au ${dateLabel(dashboard.accounts?.[0]?.balance_as_of||certified.as_of)}</small></div><div class="money">${euro(components.current_balance_cents??dashboard.accounts?.[0]?.current_balance_cents)}</div></div><div class="decision-row"><div><strong>Safe to spend maintenant</strong><small>Après échéances, récurrences et réserve de sécurité</small></div><div class="money ${certifiedSafe.calculated_cents>0?'positive':'negative'}">${euro(certifiedSafe.calculated_cents??0)}</div></div>${verifiedIncome?`<div class="decision-row"><div><strong>Salaire attendu</strong><small>${dateLabel(verifiedIncome.date)} · Projection historique</small></div><div class="money positive">+${euro(verifiedIncome.amount_cents)}</div></div>`:''}${nextTransfer?`<div class="decision-row"><div><strong>Compte commun</strong><small>Virement récurrent confirmé · le ${nextTransfer.day_of_month||nextTransfer.usual_day||'1'} de chaque mois</small></div><div class="money negative">${euro(nextTransfer.amount_cents)}</div></div>`:''}</section>`;
+      root.innerHTML+=forecastAccuracyCard(forecastAccuracy);
       bindNavigation(root);
     }catch(error){renderError(root,'Accueil',error,'home');}
   }
