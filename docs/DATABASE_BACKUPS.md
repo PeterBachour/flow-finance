@@ -38,7 +38,7 @@ Le message de réussite indique le chemin, la taille et le résultat d'intégrit
 
 ```bash
 python3 -c "import sqlite3,sys; db=sqlite3.connect(sys.argv[1]); print(db.execute('PRAGMA integrity_check').fetchone()[0]); db.close()" \
-  /home/pi/flow-finance-backups/<nom-du-fichier>.db
+  /home/pi/flow-finance-backups/NOM_DU_FICHIER.db
 ```
 
 Conserve les sauvegardes sur un support distinct du Raspberry Pi pour te protéger aussi contre la panne ou la perte de l'appareil. Une restauration doit être faite manuellement après arrêt de Flow et vérification de la copie; le script ne restaure jamais automatiquement la base.
