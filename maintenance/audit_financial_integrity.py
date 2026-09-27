@@ -13,19 +13,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.financial_integrity import build_financial_integrity
-from app.imports import ensure_import_schema
-
-
-def _ensure_recurring_columns(conn: sqlite3.Connection) -> None:
-    columns = {row['name'] for row in conn.execute('PRAGMA table_info(recurring_transactions)').fetchall()}
-    for name, sql_type in {
-        'usual_day': 'INTEGER',
-        'next_expected_date': 'TEXT',
-        'last_seen_date': 'TEXT',
-        "detection_status": "TEXT NOT NULL DEFAULT 'accepted'",
-    }.items():
-        if name not in columns:
-            conn.execute(f'ALTER TABLE recurring_transactions ADD COLUMN {name} {sql_type}')
 
 
 def exit_code(result: dict, fail_on_hard: bool = False) -> int:
@@ -51,14 +38,13 @@ def main() -> int:
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     try:
-        ensure_import_schema(conn)
-        _ensure_recurring_columns(conn)
+        # Audit commands must not create tables or alter the user's database.
         result = build_financial_integrity(
             conn,
             as_of=args.as_of,
             months=max(1, min(args.months, 36)),
         )
-        conn.commit()
+        conn.rollback()
     finally:
         conn.close()
 
@@ -80,6 +66,12 @@ def main() -> int:
         f"warnings={statements['warning_count']} "
         f"arithmetic_errors={statements['arithmetic_error_count']} "
         f"missing_snapshots={statements['missing_balance_snapshot_count']}"
+    )
+    continuity = result['statement_audit'].get('continuity', {})
+    print(
+        f"continuity_gaps={continuity.get('gap_count', 0)} "
+        f"overlaps={continuity.get('overlap_count', 0)} "
+        f"balance_breaks={continuity.get('balance_break_count', 0)}"
     )
     for item in result['statement_audit']['statements']:
         if item['integrity_status'] == 'warning':

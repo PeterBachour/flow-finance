@@ -1,3 +1,9 @@
+## Unreleased — Contrôle de continuité des relevés
+
+- Audit en lecture seule des périodes de relevés par compte.
+- Signalement des lacunes de dates, chevauchements et ruptures entre soldes de clôture et d'ouverture.
+- Ajout de tests de non-régression pour ces anomalies.
+
 ## 6.4.18 - 2026-09-18
 
 - Ajout d'une modal mobile pour prévisualiser les validations groupées.
