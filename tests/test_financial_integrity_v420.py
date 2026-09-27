@@ -136,3 +136,31 @@ def test_internal_transfers_are_not_consumption(tmp_path: Path):
     assert august['internal_transfer_out_cents'] == 140000
     assert august['consumption_cents'] == 5000
     conn.close()
+
+
+
+def test_statement_audit_detects_gaps_overlaps_and_balance_breaks(tmp_path: Path):
+    conn = make_conn(tmp_path)
+    account_id = conn.execute("INSERT INTO accounts(name) VALUES('LCL')").lastrowid
+    _insert_reconciled_statement(conn, account_id)
+    conn.execute("""
+        INSERT INTO imports(account_id,filename,source_type,bank,status,period_start,period_end,
+                            opening_balance_cents,closing_balance_cents,debit_total_cents,credit_total_cents,quality_status)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+    """, (account_id,'september.pdf','pdf','LCL','completed','2026-09-05','2026-09-30',
+          125000,125000,0,0,'verified'))
+    conn.execute("""
+        INSERT INTO imports(account_id,filename,source_type,bank,status,period_start,period_end,
+                            opening_balance_cents,closing_balance_cents,debit_total_cents,credit_total_cents,quality_status)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+    """, (account_id,'overlap.pdf','pdf','LCL','completed','2026-09-20','2026-10-10',
+          125000,125000,0,0,'verified'))
+
+    result = build_financial_integrity(conn, as_of=date(2026,9,10), months=6)
+    continuity = result['statement_audit']['continuity']
+    assert continuity['gap_count'] == 1
+    assert continuity['overlap_count'] == 1
+    assert continuity['balance_break_count'] == 1
+    assert continuity['read_only'] is True
+    assert result['statement_audit']['summary']['period_gap_count'] == 1
+    conn.close()
