@@ -8,6 +8,8 @@ from .db import connection
 from .documentary_evidence import build_documentary_evidence, transaction_evidence
 from .forecast_v6 import build_v6_daily_trajectory
 from .imports import ensure_import_schema
+from .forecast_accuracy import build_forecast_accuracy, capture_daily_forecast
+from .v2_migrations import ensure_v2_schema
 
 router = APIRouter(prefix='/api/v6', tags=['v6'])
 
@@ -43,6 +45,26 @@ def safe_to_spend_explanation(as_of: date | None = None, horizon_days: int | Non
         'controls': result.get('controls', {}),
         'read_only': True,
     }
+
+
+@router.post('/forecast-snapshots/capture')
+def capture_forecast_snapshot():
+    with connection() as conn:
+        ensure_v2_schema(conn)
+        result = capture_daily_forecast(conn)
+    if result['status'] == 'unavailable':
+        raise HTTPException(409, 'Prévision indisponible : aucun snapshot n’a été enregistré.')
+    return result
+
+
+@router.get('/forecast-accuracy')
+def forecast_accuracy(
+    as_of: date | None = None,
+    window_days: int = Query(default=90, ge=30, le=365),
+):
+    with connection() as conn:
+        ensure_v2_schema(conn)
+        return build_forecast_accuracy(conn, as_of=as_of, window_days=window_days)
 
 
 @router.get('/trajectory')
