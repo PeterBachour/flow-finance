@@ -10,13 +10,16 @@ HELPER="$FLOW_DIR/maintenance/update_helper.py"
 SERVICE="/etc/systemd/system/flow-finance-update.service"
 AUDIT_SERVICE="/etc/systemd/system/flow-finance-audit.service"
 AUDIT_TIMER="/etc/systemd/system/flow-finance-audit.timer"
+FORECAST_SERVICE="/etc/systemd/system/flow-finance-forecast-capture.service"
+FORECAST_TIMER="/etc/systemd/system/flow-finance-forecast-capture.timer"
+FORECAST_SCRIPT="$FLOW_DIR/maintenance/capture_daily_forecast.sh"
 DOCKER_BIN="$(command -v docker)"
 
 if [[ ! -d "$REPO_ROOT/.git" ]]; then
   echo "Erreur: $REPO_ROOT n'est pas un dépôt Git." >&2
   exit 1
 fi
-if [[ ! -f "$FLOW_DIR/docker-compose.yml" || ! -f "$HELPER" ]]; then
+if [[ ! -f "$FLOW_DIR/docker-compose.yml" || ! -f "$HELPER" || ! -f "$FORECAST_SCRIPT" ]]; then
   echo "Erreur: installation Flow incomplète dans $FLOW_DIR." >&2
   exit 1
 fi
@@ -25,7 +28,7 @@ command -v docker >/dev/null || { echo "Erreur: docker introuvable." >&2; exit 1
 docker compose version >/dev/null
 
 sudo install -d -o "$USER_NAME" -g "$GROUP_NAME" "$MAINT_DIR"
-chmod 0755 "$HELPER"
+chmod 0755 "$HELPER" "$FORECAST_SCRIPT"
 
 sudo tee "$SERVICE" >/dev/null <<EOF
 [Unit]
@@ -66,6 +69,39 @@ Nice=10
 IOSchedulingClass=idle
 EOF
 
+sudo tee "$FORECAST_SERVICE" >/dev/null <<EOF
+[Unit]
+Description=Capture Flow Finance daily forecast
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=$USER_NAME
+Group=$GROUP_NAME
+WorkingDirectory=$FLOW_DIR
+ExecStart=$FORECAST_SCRIPT
+TimeoutStartSec=10min
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo tee "$FORECAST_TIMER" >/dev/null <<EOF
+[Unit]
+Description=Capture Flow Finance forecast every day
+
+[Timer]
+OnCalendar=*-*-* 23:50:00
+Persistent=true
+RandomizedDelaySec=5m
+Unit=flow-finance-forecast-capture.service
+
+[Install]
+WantedBy=timers.target
+EOF
+
 sudo tee "$AUDIT_TIMER" >/dev/null <<EOF
 [Unit]
 Description=Run Flow Finance financial audit every day
@@ -84,9 +120,11 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now flow-finance-update.service
 sudo systemctl restart flow-finance-update.service
 sudo systemctl enable --now flow-finance-audit.timer
+sudo systemctl enable --now flow-finance-forecast-capture.timer
 
 echo "Flow update helper installé depuis le repo: $HELPER"
 echo "Service: flow-finance-update.service"
 echo "Tests: recette pytest complète avant chaque redémarrage"
 echo "Audit: flow-finance-audit.timer, quotidien à partir de 04:15"
+echo "Capture des prévisions: flow-finance-forecast-capture.timer, quotidien vers 23:50"
 echo "État: sudo systemctl status flow-finance-update.service --no-pager"

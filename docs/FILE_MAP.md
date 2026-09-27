@@ -66,6 +66,8 @@ Les anciens fichiers versionnés restent présents pour compatibilité ou histor
 - `maintenance/audit_history_coverage.py` : audit de couverture.
 - `maintenance/reconcile_import_reviews.py` : rapprochement des revues, dry-run par défaut.
 - `maintenance/backfill_statement_balance_snapshots.py` : reconstruction idempotente des snapshots.
+- `maintenance/capture_forecast_snapshot.py` : capture explicite et idempotente des prévisions quotidiennes.
+- `maintenance/capture_daily_forecast.sh` : déclenchement local via Docker Compose pour la tâche systemd.
 
 Les scripts préfixés `audit_` doivent rester en lecture seule. Les scripts préfixés `apply_` ne doivent écrire qu'après argument explicite et sauvegarde adaptée.
 
