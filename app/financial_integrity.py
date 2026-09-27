@@ -333,8 +333,7 @@ def build_financial_integrity(conn, *, as_of: date | None = None, months: int = 
     current_month = as_of.strftime('%Y-%m')
     current = next((item for item in reversed(monthly['months']) if item['month'] == current_month), None)
     hard_issue_count = int(statements['summary'].get('warning_count') or 0)
-    review_issue_count = int(statements['summary'].get('review_count') or 0)
-    if not safe['arithmetic_consistent']:
+    review_issue_count = int(statements['summary'].get('review_count') or 0)\n    continuity = statements.get('continuity') or {}\n    review_issue_count += int(continuity.get('gap_count') or 0) + int(continuity.get('overlap_count') or 0)\n    if not safe['arithmetic_consistent']:
         hard_issue_count += 1
     if safe['balance_is_stale']:
         hard_issue_count += 1
