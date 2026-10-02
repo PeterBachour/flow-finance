@@ -454,3 +454,9 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .month-status-v7>strong{display:block;margin:5px 0;font-size:1.8rem}
 @media(max-width:699px){.home-actions-v7{grid-template-columns:1fr}.month-flow-v7{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:390px){.month-flow-v7{grid-template-columns:1fr 1fr}.action-card-v7{min-height:92px}.compact-decision{grid-template-columns:minmax(0,1fr) auto}}
+
+.hero-simulate{margin-top:15px;background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.18)}
+.simulation-result-v7{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.simulation-result-v7>div{padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface-raised)}
+.simulation-result-v7 span,.simulation-result-v7 strong{display:block}.simulation-result-v7 span{color:var(--muted);font-size:.7rem}.simulation-result-v7 strong{margin-top:5px;font-size:.95rem}
+@media(max-width:460px){.simulation-result-v7{grid-template-columns:1fr}}
