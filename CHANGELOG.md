@@ -1,3 +1,11 @@
+## 6.5.0 — Fondation V7 : dépenses régulières
+
+- Navigation principale simplifiée à quatre entrées : Accueil, Mois, Mouvements et Patrimoine.
+- Ajout d'un écran de gestion des dépenses régulières accessible depuis le mois.
+- Modification du montant, du jour, de la prochaine date, de la fréquence, de la catégorie et du compte.
+- Création de nouvelles dépenses régulières sans modifier le ledger bancaire historique.
+- API des récurrences enrichie avec édition et désactivation contrôlées.
+
 ## 6.4.20 — Fiabilité des prévisions
 
 - Ajout d'une comparaison visuelle entre projections quotidiennes et soldes confirmés de relevés.
