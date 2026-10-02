@@ -94,55 +94,109 @@
   }
 
   async function renderHome(){
-    const root=q('[data-screen="home"]');root.innerHTML=page('Aujourd’hui',todayLabel(),'Ta situation utile, avant toute décision.')+skeleton();
+    const root=q('[data-screen="home"]');root.innerHTML=page('Aujourd’hui',todayLabel(),'Ce que tu peux réellement dépenser, et pourquoi.')+skeleton();
     try{
-      const [overview,plan,inbox,dashboard,safeToSpend,trajectory,recurring,forecastAccuracy]=await Promise.all([api('/api/v3/overview'),api('/api/v3.4/action-plan?months=3'),api('/api/v3.6/decision-inbox'),api('/api/dashboard'),api('/api/v6/safe-to-spend'),api('/api/v6/trajectory'),api('/api/recurring'),api('/api/v6/forecast-accuracy').catch(()=>null)]);
-      const verified=dashboard.forecast||{},account=dashboard.accounts?.[0]||{},verifiedIncome=verified.next_income;
-      const certified=safeToSpend||{},components=certified.components||{},certifiedSafe=certified.safe_to_spend||{},realistic=trajectory?.scenarios?.realistic||{},overviewSafe=overview.cockpit?.safe_to_spend||{},health=overview.health||{},explanation=overviewSafe.explanation||{};
-      const certifiedEvents=(realistic.timeline||[]).flatMap(day=>day.events||[]);
-      const confirmedOutflows=certifiedEvents.filter(event=>Number(event.amount_cents)<0).map(event=>({...event,due_date:event.due_date||event.date}));
-      const nextRecurring=(recurring||[]).filter(item=>Number(item.is_active)!==0&&Number(item.amount_cents)<0).map(item=>({...item,due_date:item.next_occurrence||item.next_expected_date||null})).filter(item=>item.due_date);
-      const cockpit={
-        ...(overview.cockpit||{}),
-        opening_balance_cents:components.current_balance_cents??account.current_balance_cents,
-        safe_to_spend:{
-          ...overviewSafe,
-          today_cents:certifiedSafe.today_cents??certifiedSafe.calculated_cents??0,
-          week_cents:certifiedSafe.today_cents??certifiedSafe.calculated_cents??0,
-          until_income_cents:certifiedSafe.today_cents??certifiedSafe.calculated_cents??0,
-          status:certifiedSafe.calculated_cents>0?'prudent':'critical',
-          explanation:{
-            ...explanation,
-            safety_reserve_cents:components.safety_reserve_cents??0,
-            goal_allocations_cents:components.goal_reservations_cents??0,
-            days_to_horizon:certified.horizon?.days??0
-          }
-        },
-        forecast:{
-          ...verified,
-          low_point:{balance_cents:realistic.low_point?.balance_cents??certified.projections?.realistic?.low_point_cents},
-          timeline:realistic.timeline||verified.timeline||[]
-        },
-        next_income:verifiedIncome,
-        next_outflow:confirmedOutflows[0]||null,
-        recurring:nextRecurring
-      };
-      const safe=cockpit.safe_to_spend||{},forecast=cockpit.forecast||{},nextIncome=cockpit.next_income,todayIso=new Date().toISOString().slice(0,10),taxEvents=[{due_date:'2026-09-25',amount_cents:-11300,label:'Régularisation fiscale'},{due_date:'2026-10-26',amount_cents:-11300,label:'Régularisation fiscale'},{due_date:'2026-11-26',amount_cents:-11300,label:'Régularisation fiscale'},{due_date:'2026-12-28',amount_cents:-11600,label:'Régularisation fiscale'}].filter(event=>event.due_date>=todayIso).map(event=>({...event,kind:'tax_regularization',certainty:'confirmed',source:'tax_schedule'})),nextOutflow=[...(cockpit.next_outflow?[cockpit.next_outflow]:[]),...taxEvents].sort((a,b)=>String(a.due_date).localeCompare(String(b.due_date)))[0];
-      const openActions=(plan.actions||[]).filter(action=>action.status==='open'),decisions=inbox.items||[],primaryAction=openActions[0],primaryDecision=decisions[0];
-      root.innerHTML=page('Aujourd’hui',todayLabel(),'Ta situation utile, avant toute décision.')+`<section class="card hero"><div class="hero-top"><span class="status-pill" data-status="${esc(safe.status)}">${safeLabel(safe.status)}</span><span class="confidence-pill">${Math.round((cockpit.confidence?.score||0)*100)} % de confiance</span></div><p class="hero-label">Disponible aujourd’hui</p><div class="hero-amount">${euro(safe.today_cents)}</div><p class="hero-copy">Tu peux dépenser ce montant aujourd’hui sans entamer les échéances, objectifs et réserves déjà protégés.</p><div class="hero-facts"><div class="hero-fact"><span>Sur 7 jours</span><strong>${euro(safe.week_cents)}</strong><small>rythme conseillé</small></div><div class="hero-fact"><span>Jusqu’au revenu</span><strong>${euro(safe.until_income_cents)}</strong><small>${explanation.days_to_horizon||'—'} jour(s)</small></div><div class="hero-fact"><span>Solde réel</span><strong>${euro(cockpit.opening_balance_cents)}</strong><small>avant engagements</small></div></div></section><section class="home-summary"><article class="card decision-card"><div class="section-head"><div><p class="eyebrow">Prochaine échéance</p><h2>${nextOutflow?esc(nextOutflow.label):'Aucune sortie proche'}</h2></div><span class="decision-icon">${icon('calendar')}</span></div>${nextOutflow?`<div class="decision-row"><div><strong>${dateLabel(nextOutflow.due_date)}</strong>${nextOutflow.balance_after_cents!=null?`<small>Solde projeté ensuite : ${euro(nextOutflow.balance_after_cents)}</small>`:''}</div><div class="money">${euro(nextOutflow.amount_cents)}</div></div>`:'<p class="subtle">Aucune échéance n’est identifiée sur l’horizon actuel.</p>'}${nextIncome?`<p class="subtle">Prochain revenu structurant le ${dateLabel(nextIncome.date||nextIncome.due_date)}.</p>`:''}</article><article class="card"><div class="section-head"><div><p class="eyebrow">Santé financière</p><h2>${healthLabel(health.status)}</h2></div><div class="quality-ring">${health.score??'—'}</div></div><p class="subtle">Point bas prévu : <strong>${euro(forecast.low_point?.balance_cents)}</strong><br>Réserve protégée : <strong>${euro(explanation.safety_reserve_cents)}</strong></p></article></section><section class="card"><div class="section-head"><div><p class="eyebrow">Décision</p><h2>Priorité maintenant</h2></div><button class="section-action" data-open-settings>Centre de pilotage</button></div>${primaryAction?`<div class="decision-row"><span class="decision-icon">${icon(primaryAction.priority==='critical'?'alert':'arrow')}</span><div><strong>${esc(primaryAction.title)}</strong><small>${esc(primaryAction.detail)}</small></div>${primaryAction.amount_cents!=null?`<div class="money">${euro(primaryAction.amount_cents)}</div>`:''}</div>`:'<div class="empty-state">Aucune action financière prioritaire.</div>'}${primaryDecision?`<div class="decision-row"><span class="decision-icon">${icon('spark')}</span><div><strong>${esc(primaryDecision.title)}</strong><small>${esc(primaryDecision.detail)}</small></div>${primaryDecision.amount_cents!=null?`<div class="money">${euro(primaryDecision.amount_cents)}</div>`:''}</div>`:''}</section><section class="metric-grid"><article class="card metric metric-accent"><span>Actions ouvertes</span><strong>${plan.summary?.open_actions||0}</strong><small>${plan.summary?.critical_actions||0} critique(s)</small></article><article class="card metric"><span>Décisions à prendre</span><strong>${inbox.open_count||0}</strong><small>nécessitent ton choix</small></article><article class="card metric"><span>Marge minimale</span><strong>${euro(plan.summary?.minimum_safe_margin_cents)}</strong><small>projection à 3 mois</small></article><article class="card metric"><span>Objectifs réservés</span><strong>${euro(explanation.goal_allocations_cents)}</strong><small>déjà protégés</small></article></section>`;
-      const verifiedForecast=dashboard.forecast||{};
-      const nextTransfer=(cockpit.recurring||[]).find(item=>String(item.label||'').toUpperCase().includes('COMPTE COMMUN'));
-      root.innerHTML+=`<section class="card forecast-summary"><div class="section-head"><div><p class="eyebrow">Prévision vérifiée</p><h2>Réel et projection séparés</h2></div><span class="confidence-pill">API v6 · ${esc(certified.as_of||dashboard.as_of||'')}</span></div><div class="decision-row"><div><strong>Solde réel</strong><small>Confirmé au ${dateLabel(dashboard.accounts?.[0]?.balance_as_of||certified.as_of)}</small></div><div class="money">${euro(components.current_balance_cents??dashboard.accounts?.[0]?.current_balance_cents)}</div></div><div class="decision-row"><div><strong>Safe to spend maintenant</strong><small>Après échéances, récurrences et réserve de sécurité</small></div><div class="money ${certifiedSafe.calculated_cents>0?'positive':'negative'}">${euro(certifiedSafe.calculated_cents??0)}</div></div>${verifiedIncome?`<div class="decision-row"><div><strong>Salaire attendu</strong><small>${dateLabel(verifiedIncome.date)} · Projection historique</small></div><div class="money positive">+${euro(verifiedIncome.amount_cents)}</div></div>`:''}${nextTransfer?`<div class="decision-row"><div><strong>Compte commun</strong><small>Virement récurrent confirmé · le ${nextTransfer.day_of_month||nextTransfer.usual_day||'1'} de chaque mois</small></div><div class="money negative">${euro(nextTransfer.amount_cents)}</div></div>`:''}</section>`;
-      root.innerHTML+=forecastAccuracyCard(forecastAccuracy);
+      const [dashboard,safeToSpend,trajectory,recurring]=await Promise.all([
+        api('/api/dashboard'),
+        api('/api/v6/safe-to-spend'),
+        api('/api/v6/trajectory'),
+        api('/api/recurring')
+      ]);
+      const components=safeToSpend?.components||{},safe=safeToSpend?.safe_to_spend||{},realistic=trajectory?.scenarios?.realistic||{};
+      const events=(realistic.timeline||[]).flatMap(day=>(day.events||[]).map(event=>({...event,date:event.date||day.date})));
+      const upcoming=events.filter(event=>Number(event.amount_cents)<0).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))).slice(0,4);
+      const activeRecurring=(recurring||[]).filter(item=>Number(item.is_active)!==0&&Number(item.amount_cents)<0);
+      const recurringMonthly=activeRecurring.reduce((sum,item)=>sum+monthlyEquivalent(item),0);
+      const opening=Number(components.current_balance_cents??dashboard.accounts?.[0]?.current_balance_cents??0);
+      const planned=Math.abs(Number(components.planned_outflows_cents||0));
+      const recurringReserve=Math.abs(Number(components.recurring_outflows_cents??components.recurring_reserve_cents??0));
+      const goals=Math.abs(Number(components.goal_reservations_cents||0));
+      const reserve=Math.abs(Number(components.safety_reserve_cents||0));
+      const available=Number(safe.calculated_cents??safe.today_cents??0);
+      const nextIncome=dashboard?.forecast?.next_income;
+      root.innerHTML=page('Aujourd’hui',todayLabel(),'Ce que tu peux réellement dépenser, et pourquoi.')+`
+        <section class="card hero decision-hero-v7">
+          <p class="hero-label">Disponible à dépenser</p>
+          <div class="hero-amount">${euro(available)}</div>
+          <p class="hero-copy">Après les échéances prévues, les dépenses régulières, les objectifs et le coussin de sécurité.</p>
+          <div class="hero-facts">
+            <div class="hero-fact"><span>Solde réel</span><strong>${euro(opening)}</strong><small>${dateLabel(dashboard.accounts?.[0]?.balance_as_of||safeToSpend?.as_of)}</small></div>
+            <div class="hero-fact"><span>Réguliers / mois</span><strong>${euro(recurringMonthly)}</strong><small>${activeRecurring.length} actif(s)</small></div>
+            <div class="hero-fact"><span>Prochain revenu</span><strong>${nextIncome?euro(nextIncome.amount_cents):'—'}</strong><small>${nextIncome?dateLabel(nextIncome.date):'Non identifié'}</small></div>
+          </div>
+        </section>
+        <section class="card explain-card">
+          <div class="section-head"><div><p class="eyebrow">Comprendre le calcul</p><h2>D'où vient ce montant</h2></div></div>
+          <div class="formula">
+            <div class="formula-row"><span>Solde réel</span><strong>${euro(opening)}</strong></div>
+            <div class="formula-row"><span>- Échéances prévues</span><strong>${euro(-planned)}</strong></div>
+            <div class="formula-row"><span>- Dépenses régulières réservées</span><strong>${euro(-recurringReserve)}</strong></div>
+            <div class="formula-row"><span>- Objectifs réservés</span><strong>${euro(-goals)}</strong></div>
+            <div class="formula-row"><span>- Coussin de sécurité</span><strong>${euro(-reserve)}</strong></div>
+            <div class="formula-row formula-result"><span>= Disponible à dépenser</span><strong>${euro(available)}</strong></div>
+          </div>
+        </section>
+        <section class="card">
+          <div class="section-head"><div><p class="eyebrow">À venir</p><h2>Prochaines sorties</h2></div><button class="section-action" data-go="recurring">Voir les réguliers</button></div>
+          <div class="stack">${upcoming.map(event=>`<div class="decision-row compact-decision"><div><strong>${esc(event.label||'Échéance')}</strong><small>${dateLabel(event.date)} · ${esc(event.source||event.certainty||'Prévision')}</small></div><div class="money negative">${euro(event.amount_cents)}</div></div>`).join('')||'<div class="empty-state">Aucune sortie identifiée sur l’horizon actuel.</div>'}</div>
+        </section>
+        <section class="home-actions-v7">
+          <button class="card action-card-v7" data-go="month"><span>Ce mois-ci</span><strong>Comprendre mes dépenses</strong><small>Budget, fin de mois et catégories</small></button>
+          <button class="card action-card-v7" data-go="movements"><span>Mouvements</span><strong>Voir mes transactions</strong><small>Rechercher et corriger</small></button>
+          <button class="card action-card-v7" data-go="wealth"><span>Patrimoine</span><strong>Suivre mes objectifs</strong><small>Épargne, actifs et dettes</small></button>
+        </section>`;
       bindNavigation(root);
     }catch(error){renderError(root,'Accueil',error,'home');}
   }
 
   async function renderMonth(){
-    const root=q('[data-screen="month"]');root.innerHTML=page('Projection','Mois','Comprendre le mois, puis ajuster le rythme.')+skeleton();
+    const root=q('[data-screen="month"]');root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+skeleton();
     try{
-      const [monthData,adaptive,closeout,dashboard]=await Promise.all([api(`/api/v2.1/months/${state.month}`),api(`/api/v3.5/adaptive-budget?month=${state.month}`),api(`/api/v3.5/closeout?month=${state.month}`),api('/api/dashboard')]);const current=monthData.current||{},previous=monthData.previous||{},lines=adaptive.lines||[],net=Number(current.income_cents||0)-Number(current.spent_cents||0),previousNet=Number(previous.income_cents||0)-Number(previous.spent_cents||0),netDelta=net-previousNet,monthClose=Number(current.projected_close_cents),monthOpening=Number(dashboard?.accounts?.reduce((sum,item)=>sum+Number(item.current_balance_cents||0),0)||0),plannedAdjustment=monthClose===monthClose?monthClose-monthOpening-net:0;
-      root.innerHTML=page('Projection','Mois','Comprendre le mois, puis ajuster le rythme.')+`<section class="card month-toolbar"><button class="icon-btn" id="prevMonth" aria-label="Mois précédent">‹</button><div class="month-title"><strong>${monthLabel(state.month)}</strong><small>${state.month}</small></div><button class="icon-btn" id="nextMonth" aria-label="Mois suivant">›</button></section><section class="card month-balance"><div><p class="eyebrow">Solde estimé en fin de mois</p><strong class="${monthClose>=0?'positive':'danger'}">${monthClose===monthClose?euro(monthClose):'Indisponible'}</strong><small class="subtle">Ce qui devrait rester sur le compte à la fin du mois</small></div><div class="trend"><small>Flux du mois</small><b class="${netDelta>=0?'positive':'danger'}">${netDelta>=0?'+':''}${euro(netDelta)}</b></div></section><section class="metric-grid"><article class="card metric"><span>Revenus</span><strong>${euro(current.income_cents)}</strong><small>encaissés sur le mois</small></article><article class="card metric"><span>Dépenses</span><strong>${euro(current.spent_cents)}</strong><small>hors transferts internes</small></article><article class="card metric metric-accent"><span>Reste pilotable</span><strong>${euro(adaptive.adaptive_pool_cents)}</strong><small>${adaptive.days_left||0} jour(s) restant(s)</small></article><article class="card metric ${Number(closeout.variance_cents)<0?'metric-warning':''}"><span>Écart au budget</span><strong>${euro(closeout.variance_cents)}</strong><small>${closeout.savings_rate_pct??'—'} % d’épargne</small></article></section><section class="card explain-card"><div class="section-head"><div><p class="eyebrow">Lecture simple</p><h2>Comment le mois est calculé</h2></div></div><p class="subtle">Le solde de fin de mois part du solde réel du compte, puis ajoute les revenus attendus et retire les dépenses et engagements prévus.</p><div class="formula"><div class="formula-row"><span>Solde réel au début de la projection</span><strong>${monthOpening?euro(monthOpening):'—'}</strong></div><div class="formula-row"><span>+ Flux net enregistré</span><strong>${euro(net)}</strong></div><div class="formula-row"><span>+/- Prévisions restantes</span><strong>${plannedAdjustment?euro(plannedAdjustment):euro(0)}</strong></div><div class="formula-row formula-result"><span>= Solde estimé en fin de mois</span><strong>${monthClose===monthClose?euro(monthClose):'—'}</strong></div></div><p class="subtle">Chaque ligne ci-dessous compare ce qui a déjà été dépensé avec l’enveloppe prévue. Un montant positif signifie qu’il reste du budget ; un montant négatif signale un dépassement.</p></section><section class="card"><div class="section-head"><div><p class="eyebrow">Budget adaptatif</p><h2>Reste conseillé par catégorie</h2></div></div><div class="budget-list">${lines.map(item=>{const spent=Number(item.spent_cents)||0,planned=Math.max(0,Number(item.planned_cents)||0),ratio=planned?Math.min(100,Math.round(spent/planned*100)):0;return `<article class="budget-item"><div class="budget-item-head"><div><strong>${esc(item.category)}</strong><small>${lineStatus(item.status)} · ${euro(spent)} dépensés sur ${euro(planned)}</small></div><div class="money">${euro(item.recommended_remaining_cents)}</div></div><div class="budget-track ${ratio>90?'warning':''}"><i style="width:${ratio}%"></i></div></article>`;}).join('')||'<div class="empty-state">Aucune enveloppe n’est encore définie pour ce mois.</div>'}</div></section><section class="card"><p class="eyebrow">Méthode</p><p class="subtle">${esc(adaptive.method)}</p></section>`;q('#prevMonth').addEventListener('click',()=>shiftMonth(-1));q('#nextMonth').addEventListener('click',()=>shiftMonth(1));root.insertAdjacentHTML('beforeend','<section class="card recurring-entry"><div><p class="eyebrow">Dépenses régulières</p><h2>Montants et prochaines dates</h2><p class="subtle">Consulte et modifie les charges qui alimentent les prévisions.</p></div><button class="btn secondary" data-go="recurring">Gérer</button></section>');bindNavigation(root);
+      const [monthData,adaptive,closeout,dashboard,recurring]=await Promise.all([
+        api(`/api/v2.1/months/${state.month}`),
+        api(`/api/v3.5/adaptive-budget?month=${state.month}`),
+        api(`/api/v3.5/closeout?month=${state.month}`),
+        api('/api/dashboard'),
+        api('/api/recurring')
+      ]);
+      const current=monthData.current||{},lines=adaptive.lines||[];
+      const monthClose=Number(current.projected_close_cents);
+      const monthOpening=Number(dashboard?.accounts?.reduce((sum,item)=>sum+Number(item.current_balance_cents||0),0)||0);
+      const income=Number(current.income_cents||0),spent=Number(current.spent_cents||0),net=income-spent;
+      const plannedAdjustment=Number.isFinite(monthClose)?monthClose-monthOpening-net:0;
+      const activeRecurring=(recurring||[]).filter(item=>Number(item.is_active)!==0&&Number(item.amount_cents)<0);
+      const recurringMonthly=activeRecurring.reduce((sum,item)=>sum+monthlyEquivalent(item),0);
+      const topCategories=[...lines].sort((a,b)=>Number(b.spent_cents||0)-Number(a.spent_cents||0)).slice(0,6);
+      root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+`
+        <section class="card month-toolbar"><button class="icon-btn" id="prevMonth" aria-label="Mois précédent">‹</button><div class="month-title"><strong>${monthLabel(state.month)}</strong><small>${state.month}</small></div><button class="icon-btn" id="nextMonth" aria-label="Mois suivant">›</button></section>
+        <section class="card month-balance month-balance-v7"><div><p class="eyebrow">Ce qui devrait rester</p><strong class="${monthClose>=0?'positive':'danger'}">${Number.isFinite(monthClose)?euro(monthClose):'Indisponible'}</strong><small class="subtle">Solde estimé à la fin du mois</small></div></section>
+        <section class="month-flow-v7">
+          <article class="card metric"><span>Revenus</span><strong>${euro(income)}</strong><small>sur le mois</small></article>
+          <article class="card metric"><span>Dépenses</span><strong>${euro(spent)}</strong><small>hors transferts internes</small></article>
+          <article class="card metric"><span>Réguliers</span><strong>${euro(recurringMonthly)}</strong><small>équivalent mensuel</small></article>
+          <article class="card metric metric-accent"><span>Reste pilotable</span><strong>${euro(adaptive.adaptive_pool_cents)}</strong><small>${adaptive.days_left||0} jour(s)</small></article>
+        </section>
+        <section class="card explain-card">
+          <div class="section-head"><div><p class="eyebrow">Calcul du restant</p><h2>Comment arrive-t-on à la fin de mois</h2></div></div>
+          <div class="formula">
+            <div class="formula-row"><span>Solde réel de départ</span><strong>${euro(monthOpening)}</strong></div>
+            <div class="formula-row"><span>+ Revenus - dépenses constatées</span><strong>${euro(net)}</strong></div>
+            <div class="formula-row"><span>+/- Échéances et prévisions restantes</span><strong>${euro(plannedAdjustment)}</strong></div>
+            <div class="formula-row formula-result"><span>= Solde estimé fin de mois</span><strong>${Number.isFinite(monthClose)?euro(monthClose):'—'}</strong></div>
+          </div>
+        </section>
+        <section class="card recurring-entry recurring-entry-v7">
+          <div><p class="eyebrow">Dépenses régulières</p><h2>${euro(recurringMonthly)} / mois</h2><p class="subtle">${activeRecurring.length} charge(s) active(s). Modifie montants et dates depuis la vue dédiée.</p></div>
+          <button class="btn secondary" data-go="recurring">Gérer</button>
+        </section>
+        <section class="card">
+          <div class="section-head"><div><p class="eyebrow">Où part l'argent</p><h2>Principales catégories</h2></div></div>
+          <div class="budget-list">${topCategories.map(item=>{const spentValue=Number(item.spent_cents)||0,planned=Math.max(0,Number(item.planned_cents)||0),ratio=planned?Math.min(100,Math.round(spentValue/planned*100)):0;return `<article class="budget-item"><div class="budget-item-head"><div><strong>${esc(item.category)}</strong><small>${euro(spentValue)} dépensés${planned?' sur '+euro(planned):''}</small></div><div class="money">${euro(item.recommended_remaining_cents)}</div></div><div class="budget-track ${ratio>90?'warning':''}"><i style="width:${ratio}%"></i></div></article>`;}).join('')||'<div class="empty-state">Aucune dépense catégorisée pour ce mois.</div>'}</div>
+        </section>
+        <section class="card month-status-v7"><p class="eyebrow">Écart au budget</p><strong class="${Number(closeout.variance_cents)<0?'danger':'positive'}">${euro(closeout.variance_cents)}</strong><p class="subtle">Taux d'épargne : ${closeout.savings_rate_pct??'—'} %</p></section>`;
+      q('#prevMonth').addEventListener('click',()=>shiftMonth(-1));
+      q('#nextMonth').addEventListener('click',()=>shiftMonth(1));
+      bindNavigation(root);
     }catch(error){renderError(root,'Mois',error,'month');}
   }
   function shiftMonth(delta){const d=new Date(`${state.month}-15T12:00:00`);d.setMonth(d.getMonth()+delta);state.month=d.toISOString().slice(0,7);renderMonth();}
