@@ -93,6 +93,34 @@
     return `<section class="card forecast-accuracy" aria-labelledby="forecastAccuracyTitle"><div class="section-head"><div><p class="eyebrow">Fiabilité des prévisions</p><h2 id="forecastAccuracyTitle">Prévu et constaté</h2></div><span class="confidence-pill">${Number(data?.snapshot_count||0)} capture(s)</span></div><p class="subtle">Comparaison aux soldes confirmés des relevés. ${esc(detail)}</p>${hasResults?`<div class="forecast-accuracy-grid">${rows}</div><p class="accuracy-footnote">La valeur moyenne affichée indique la différence entre le solde prévu et le solde du relevé.</p>`:rows}</section>`;
   }
 
+  function openSimulation(){
+    const dialog=q('#editDialog'),body=q('#editBody');
+    const today=new Date().toISOString().slice(0,10);
+    body.innerHTML=`<form id="quickSimulationForm" class="stack">
+      <p class="subtle">Teste un achat sans créer de transaction réelle. Flow compare le disponible actuel et le disponible après cette dépense.</p>
+      <label class="form-label">Montant en euros<input class="field" name="amount" type="number" min="0.01" step="0.01" required placeholder="Exemple : 250"></label>
+      <label class="form-label">Date<input class="field" name="date" type="date" required value="${today}"></label>
+      <label class="form-label">Libellé<input class="field" name="label" maxlength="180" value="Dépense simulée"></label>
+      <button class="btn primary">Calculer l'impact</button>
+      <div id="quickSimulationResult"></div>
+    </form>`;
+    dialog.showModal();
+    q('#quickSimulationForm').addEventListener('submit',async event=>{
+      event.preventDefault();
+      const form=event.currentTarget.elements,result=q('#quickSimulationResult');
+      result.innerHTML=skeleton();
+      try{
+        const data=await api('/api/simulations',{method:'POST',body:JSON.stringify({
+          label:form.label.value||'Dépense simulée',
+          amount_cents:-Math.round(Math.abs(Number(form.amount.value))*100),
+          due_date:form.date.value
+        })});
+        const base=data.baseline||{},sim=data.simulated||{},delta=Number(data.impact?.safe_to_spend_delta_cents||0);
+        result.innerHTML=`<div class="simulation-result-v7"><div><span>Disponible actuel</span><strong>${euro(base.safe_to_spend_cents)}</strong></div><div><span>Après achat</span><strong class="${Number(sim.safe_to_spend_cents)>=0?'positive':'danger'}">${euro(sim.safe_to_spend_cents)}</strong></div><div><span>Impact</span><strong class="danger">${euro(delta)}</strong></div></div>`;
+      }catch(error){result.innerHTML=`<div class="notice">Simulation indisponible : ${esc(error.message)}</div>`;}
+    });
+  }
+
   async function renderHome(){
     const root=q('[data-screen="home"]');root.innerHTML=page('Aujourd’hui',todayLabel(),'Ce que tu peux réellement dépenser, et pourquoi.')+skeleton();
     try{
@@ -119,6 +147,7 @@
           <p class="hero-label">Disponible à dépenser</p>
           <div class="hero-amount">${euro(available)}</div>
           <p class="hero-copy">Après les échéances prévues, les dépenses régulières, les objectifs et le coussin de sécurité.</p>
+          <button class="btn hero-simulate" id="simulatePurchase">Simuler une dépense</button>
           <div class="hero-facts">
             <div class="hero-fact"><span>Solde réel</span><strong>${euro(opening)}</strong><small>${dateLabel(dashboard.accounts?.[0]?.balance_as_of||safeToSpend?.as_of)}</small></div>
             <div class="hero-fact"><span>Réguliers / mois</span><strong>${euro(recurringMonthly)}</strong><small>${activeRecurring.length} actif(s)</small></div>
@@ -146,6 +175,7 @@
           <button class="card action-card-v7" data-go="wealth"><span>Patrimoine</span><strong>Suivre mes objectifs</strong><small>Épargne, actifs et dettes</small></button>
         </section>`;
       bindNavigation(root);
+      q('#simulatePurchase')?.addEventListener('click',openSimulation);
     }catch(error){renderError(root,'Accueil',error,'home');}
   }
 
