@@ -270,35 +270,121 @@
   }
 
   async function renderMovements(){
-    const root=q('[data-screen="movements"]');root.innerHTML=page('Contrôle','Mouvements','Comprendre où part ton argent et corriger les opérations.')+skeleton();
+    const root=q('[data-screen="movements"]');root.innerHTML=page('Historique','Mouvements','Toutes tes opérations, sans bruit technique.')+skeleton();
     try{
-      const params=new URLSearchParams({month:state.month,limit:'150'});if(state.query)params.set('q',state.query);if(state.filter!=='all')params.set('quality',state.filter);
-      const [rowsResult,summaryResult,intelligenceResult,groupResult,categoriesResult]=await Promise.allSettled([api(`/api/v3.1/movements?${params}`),api(`/api/v3.1/movement-summary?month=${state.month}`),api('/api/v3.7/data-intelligence'),api('/api/imports/inbox/groups?limit=12'),api('/api/categories')]);const rows=rowsResult.status==='fulfilled'?rowsResult.value:[];const summary=summaryResult.status==='fulfilled'?summaryResult.value:{};const intelligence=intelligenceResult.status==='fulfilled'?intelligenceResult.value:{};const groupData=groupResult.status==='fulfilled'?groupResult.value:{total_pending:0,groups:[],error:'Impossible de charger les groupes de revue.'};const categories=categoriesResult.status==='fulfilled'?categoriesResult.value:[];
-      const expenses=rows.filter(item=>Number(item.amount_cents)<0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
-      const incomes=rows.filter(item=>Number(item.amount_cents)>0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
-      const expenseTotal=expenses.reduce((sum,item)=>sum+Math.abs(Number(item.amount_cents)||0),0),incomeTotal=incomes.reduce((sum,item)=>sum+Number(item.amount_cents||0),0);
-      const categoryTotals={};expenses.forEach(item=>{const key=item.category||'Non catégorisé';categoryTotals[key]=(categoryTotals[key]||0)+Math.abs(Number(item.amount_cents)||0);});
-      const categoryMarkup=`<section class="card movement-categories"><div class="section-head"><div><p class="eyebrow">Où part l'argent</p><h2>Par catégorie</h2></div><span class="subtle">${Object.keys(categoryTotals).length} catégorie(s)</span></div><div class="category-list">${Object.entries(categoryTotals).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([category,total])=>{const pct=expenseTotal?Math.round(total/expenseTotal*100):0;return `<div class="category-row"><div class="category-name"><strong>${esc(category)}</strong><small>${pct} % des dépenses</small></div><div class="category-value"><strong>${euro(total)}</strong><i><b style="width:${pct}%"></b></i></div></div>`;}).join('')||'<div class="empty-state">Aucune dépense catégorisée pour ce mois.</div>'}</div></section>`;
-      const guide=`<section class="card explain-card movement-guide"><p class="eyebrow">Comment lire cette page</p><p class="subtle">Les dépenses diminuent ton solde, les revenus l'augmentent. Les transferts entre tes comptes sont exclus des totaux. Ouvre une opération pour modifier sa catégorie ou son libellé.</p></section>`;
-      const groupMarkup=`<section class="card movement-group-review"><div class="section-head"><div><p class="eyebrow">Revue groupée</p><h2>À valider par groupe</h2></div><span class="subtle">${groupData.error?'Indisponible':`${groupData.total_pending||0} en attente`}</span></div><p class="subtle">Sélectionne plusieurs groupes pour les valider ensemble. Un aperçu de l'impact sera affiché avant confirmation.</p><div class="group-review-batch"><select id="batchGroupCategory" aria-label="Catégorie commune"><option value="">Catégorie commune</option>${(categories||[]).map(category=>`<option value="${esc(category.name)}">${esc(category.name)}</option>`).join('')}</select><select id="batchGroupType" aria-label="Type commun"><option value="expense">Dépense</option><option value="income">Revenu</option><option value="transfer">Transfert</option><option value="refund">Remboursement</option></select><button class="btn primary" id="batchGroupReview">Aperçu de la sélection</button></div><div class="group-review-list">${(groupData.groups||[]).slice(0,20).map(group=>{return `<label class="group-review-row"><input type="checkbox" data-group-select value="${esc(group.normalized_label)}"><span><strong>${esc(group.normalized_label)}</strong><small>${group.occurrence_count} mouvement(s) · ${euro(group.net_amount_cents||0)}</small></span><button type="button" class="btn secondary group-review-apply" data-group-label="${esc(group.normalized_label)}">Aperçu</button></label>`;}).join('')||'<div class="empty-state">${groupData.error?esc(groupData.error):\'Aucun groupe à revoir.\'}</div>'}</div></section>`;
-      root.innerHTML=page('Contrôle','Mouvements','Comprendre où part ton argent et corriger les opérations.')+`<section class="card movement-overview"><div class="section-head"><div><p class="eyebrow">${monthLabel(state.month)}</p><h2>Vue du mois</h2></div><span class="confidence-pill">${rows.length} opération(s)</span></div><div class="movement-totals"><div><span>Dépenses</span><strong class="negative">-${euro(expenseTotal)}</strong></div><div><span>Revenus</span><strong class="positive">+${euro(incomeTotal)}</strong></div><div><span>À classer</span><strong>${summary.uncategorized||0}</strong></div></div></section>${guide}${groupMarkup}<section class="card movement-month-picker"><div><p class="eyebrow">Période</p><strong>Afficher les mouvements de</strong></div><div class="month-picker-controls"><button class="icon-btn" id="movementPrevMonth" aria-label="Mois précédent">‹</button><input id="movementMonth" type="month" value="${state.month}" aria-label="Mois des mouvements"><button class="icon-btn" id="movementNextMonth" aria-label="Mois suivant">›</button></div></section><section class="toolbar sticky-tools"><label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input id="movementSearch" autocomplete="off" placeholder="Rechercher un mouvement" value="${esc(state.query)}"></label><div class="chips">${[['all','Tous'],['uncategorized','À catégoriser'],['unmatched_transfer','Transferts'],['exceptional','Exceptionnels'],['excluded','Hors analyses']].map(([key,label])=>`<button class="chip ${state.filter===key?'active':''}" data-filter="${key}">${label}</button>`).join('')}</div></section>${categoryMarkup}<section class="card movement-operations"><div class="section-head"><div><p class="eyebrow">Détail</p><h2>Opérations</h2></div><span class="subtle">${rows.length} résultat(s)</span></div><div class="movement-list">${rows.map(item=>{const positive=Number(item.amount_cents)>0;return `<button class="row movement-row list-button" data-edit="${item.id}"><span class="movement-icon ${positive?'income':'expense'}">${icon(positive?'income':'expense')}</span><div><strong>${esc(item.user_label||item.label)}</strong><small>${dateLabel(item.booking_date)} · ${esc(item.category||'Non catégorisé')}${item.account_name?` · ${esc(item.account_name)}`:''}</small></div><div class="money ${positive?'positive':'negative'}">${positive?'+':''}${euro(item.amount_cents)}</div></button>`;}).join('')||'<div class="empty-state">Aucun mouvement ne correspond à ces filtres.</div>'}</div></section><section class="card movement-suggestions"><details><summary><span><p class="eyebrow">Automatisation</p><strong>Suggestions de marchands</strong></span><span class="chip">${(intelligence.merchant_suggestions||[]).length}</span></summary><div class="suggestion-list">${(intelligence.merchant_suggestions||[]).slice(0,5).map(item=>`<div class="row"><div><strong>${esc(item.canonical_name)}</strong><small>${item.occurrences} occurrence(s) · ${Math.round(item.confidence*100)} % de confiance</small></div>${item.confirmed?'<span class="chip active">Confirmé</span>':`<button class="chip merchant-confirm" data-merchant-key="${esc(item.normalized_key)}" data-merchant-name="${esc(item.canonical_name)}">Confirmer</button>`}</div>`).join('')||'<div class="empty-state">Aucune suggestion actuellement.</div>'}</div></details></section>`;
+      const params=new URLSearchParams({month:state.month,limit:'250'});
+      if(state.query)params.set('q',state.query);
+      if(state.filter==='uncategorized')params.set('quality','uncategorized');
+      const [rows,summary]=await Promise.all([
+        api(`/api/v3.1/movements?${params}`),
+        api(`/api/v3.1/movement-summary?month=${state.month}`)
+      ]);
+      let visible=rows||[];
+      if(state.filter==='expense')visible=visible.filter(item=>Number(item.amount_cents)<0&&!item.is_internal_transfer);
+      if(state.filter==='income')visible=visible.filter(item=>Number(item.amount_cents)>0&&!item.is_internal_transfer);
+      const expenses=(rows||[]).filter(item=>Number(item.amount_cents)<0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
+      const incomes=(rows||[]).filter(item=>Number(item.amount_cents)>0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
+      const expenseTotal=expenses.reduce((sum,item)=>sum+Math.abs(Number(item.amount_cents)||0),0);
+      const incomeTotal=incomes.reduce((sum,item)=>sum+Number(item.amount_cents||0),0);
+      const groups=[];
+      visible.forEach(item=>{
+        const day=String(item.booking_date||'');
+        let group=groups.find(entry=>entry.date===day);
+        if(!group){group={date:day,items:[]};groups.push(group);}
+        group.items.push(item);
+      });
+      const listMarkup=groups.map(group=>`<section class="movement-day">
+        <div class="movement-day-head"><strong>${dateLabel(group.date)}</strong><span>${group.items.length} opération(s)</span></div>
+        <div class="movement-bank-list">${group.items.map(item=>{
+          const positive=Number(item.amount_cents)>0;
+          const transfer=Boolean(item.is_internal_transfer);
+          const label=item.user_label||item.label;
+          return `<button class="movement-bank-row" data-edit="${item.id}">
+            <div class="movement-bank-copy">
+              <strong>${esc(label)}</strong>
+              <small>${esc(item.category||'Non catégorisé')}${transfer?' · Transfert interne':''}</small>
+            </div>
+            <div class="money ${positive?'positive':'negative'}">${positive?'+':''}${euro(item.amount_cents)}</div>
+          </button>`;
+        }).join('')}</div>
+      </section>`).join('');
+      root.innerHTML=page('Historique','Mouvements','Toutes tes opérations, sans bruit technique.')+`
+        <section class="card movement-overview movement-overview-v7">
+          <div class="section-head"><div><p class="eyebrow">${monthLabel(state.month)}</p><h2>Résumé du mois</h2></div><span class="confidence-pill">${rows.length} opération(s)</span></div>
+          <div class="movement-totals">
+            <div><span>Dépenses</span><strong class="negative">-${euro(expenseTotal)}</strong></div>
+            <div><span>Revenus</span><strong class="positive">+${euro(incomeTotal)}</strong></div>
+            <div><span>À classer</span><strong>${summary.uncategorized||0}</strong></div>
+          </div>
+        </section>
+        <section class="card movement-controls-v7">
+          <div class="month-picker-controls"><button class="icon-btn" id="movementPrevMonth" aria-label="Mois précédent">‹</button><input id="movementMonth" type="month" value="${state.month}" aria-label="Mois des mouvements"><button class="icon-btn" id="movementNextMonth" aria-label="Mois suivant">›</button></div>
+          <label class="search-field search-field-large"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input id="movementSearch" autocomplete="off" placeholder="Rechercher" value="${esc(state.query)}"></label>
+          <div class="chips movement-filter-v7">${[['all','Tous'],['expense','Dépenses'],['income','Revenus'],['uncategorized','À classer']].map(([key,label])=>`<button class="chip ${state.filter===key?'active':''}" data-filter="${key}">${label}</button>`).join('')}</div>
+        </section>
+        <section class="card movement-operations-v7">
+          <div class="section-head"><div><p class="eyebrow">Opérations</p><h2>${visible.length} mouvement(s)</h2></div></div>
+          ${listMarkup||'<div class="empty-state">Aucun mouvement pour cette sélection.</div>'}
+        </section>`;
       q('#movementSearch').addEventListener('input',event=>{state.query=event.target.value;clearTimeout(window.__flowSearch);window.__flowSearch=setTimeout(renderMovements,260);});
       q('#movementMonth').addEventListener('change',event=>{if(event.target.value){state.month=event.target.value;renderMovements();}});
-      q('#movementPrevMonth').addEventListener('click',()=>{shiftMovementMonth(-1);});
-      q('#movementNextMonth').addEventListener('click',()=>{shiftMovementMonth(1);});
+      q('#movementPrevMonth').addEventListener('click',()=>shiftMovementMonth(-1));
+      q('#movementNextMonth').addEventListener('click',()=>shiftMovementMonth(1));
       root.querySelectorAll('[data-filter]').forEach(button=>button.addEventListener('click',()=>{state.filter=button.dataset.filter;renderMovements();}));
       root.querySelectorAll('[data-edit]').forEach(button=>button.addEventListener('click',()=>openMovement(Number(button.dataset.edit))));
-      root.querySelectorAll('.group-review-apply').forEach(button=>button.addEventListener('click',async()=>{const category=q('#batchGroupCategory').value;const transactionType=q('#batchGroupType').value;if(!category){alert('Choisis une catégorie avant de continuer.');return;}button.disabled=true;try{const preview=await api('/api/imports/inbox/group-review',{method:'POST',body:JSON.stringify({normalized_label:button.dataset.groupLabel,category,transaction_type:transactionType,confirm:false})});const p=preview.preview||{};const confirmed=window.confirm(`Aperçu de validation\\n\\n${p.pending_count||0} mouvement(s)\\nDébits : ${p.debit_count||0}\\nCrédits : ${p.credit_count||0}\\nImpact net : ${euro(p.net_amount_cents||0)}\\n\\nConfirmer uniquement ce groupe ?`);if(confirmed){await api('/api/imports/inbox/group-review',{method:'POST',body:JSON.stringify({normalized_label:button.dataset.groupLabel,category,transaction_type:transactionType,confirm:true})});renderMovements();}else{button.disabled=false;}}catch(error){button.disabled=false;alert(error.message);}}));
-
-      q('#batchGroupReview')?.addEventListener('click',async()=>{const labels=[...root.querySelectorAll('[data-group-select]:checked')].map(input=>input.value);const category=q('#batchGroupCategory').value;const transactionType=q('#batchGroupType').value;if(!labels.length){alert('Sélectionne au moins un groupe.');return;}if(!category){alert('Choisis une catégorie commune.');return;}const button=q('#batchGroupReview');button.disabled=true;try{const preview=await api('/api/imports/inbox/group-review/batch',{method:'POST',body:JSON.stringify({normalized_labels:labels,category,transaction_type:transactionType,confirm:false})});const p=preview.preview||{};const confirmed=window.confirm(`Aperçu de validation groupée\\n\\n${p.groups?.length||labels.length} groupe(s)\\n${p.pending_count||0} mouvement(s)\\nDébits : ${p.debit_count||0}\\nCrédits : ${p.credit_count||0}\\nImpact net : ${euro(p.net_amount_cents||0)}\\n\\nConfirmer la validation de toute la sélection ?`);if(confirmed){await api('/api/imports/inbox/group-review/batch',{method:'POST',body:JSON.stringify({normalized_labels:labels,category,transaction_type:transactionType,confirm:true})});renderMovements();}else{button.disabled=false;}}catch(error){button.disabled=false;alert(error.message);}});
-      bindGroupReviewModal(root);
-      root.querySelectorAll('.merchant-confirm').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{await api('/api/v3.7/merchant-aliases',{method:'POST',body:JSON.stringify({normalized_key:button.dataset.merchantKey,canonical_name:button.dataset.merchantName})});renderMovements();}catch(error){button.disabled=false;alert(error.message);}}));
     }catch(error){renderError(root,'Mouvements',error,'movements');}
   }
 
   function shiftMovementMonth(delta){const d=new Date(`${state.month}-15T12:00:00`);d.setMonth(d.getMonth()+delta);state.month=d.toISOString().slice(0,7);renderMovements();}
 
-  async function openMovement(id){const dialog=q('#editDialog'),body=q('#editBody');dialog.showModal();body.innerHTML=skeleton();try{const [rows,categories]=await Promise.all([api('/api/v3.1/movements?limit=500'),api('/api/categories')]);const movement=rows.find(item=>item.id===id);if(!movement)throw new Error('Mouvement introuvable');body.innerHTML=`<form id="editForm" class="stack"><p class="eyebrow">${dateLabel(movement.booking_date)} · ${esc(movement.account_name||'Compte')}</p><h3>${esc(movement.label)}</h3><label class="form-label">Libellé personnel<input class="field" name="user_label" value="${esc(movement.user_label||'')}" placeholder="Nom lisible"></label><label class="form-label">Catégorie<select class="field" name="category"><option value="">Non catégorisé</option>${categories.map(category=>`<option ${category.name===movement.category?'selected':''}>${esc(category.name)}</option>`).join('')}</select></label><label class="toggle-row"><span><strong>Transfert interne</strong><small>Exclu des revenus et dépenses</small></span><input type="checkbox" name="is_internal_transfer" ${movement.is_internal_transfer?'checked':''}></label><label class="toggle-row"><span><strong>Dépense exceptionnelle</strong><small>Isolée des tendances courantes</small></span><input type="checkbox" name="is_exceptional" ${movement.is_exceptional?'checked':''}></label><label class="toggle-row"><span><strong>Exclure des analyses</strong><small>Reste visible dans l’historique</small></span><input type="checkbox" name="exclude_from_analytics" ${movement.exclude_from_analytics?'checked':''}></label><button class="btn primary">Enregistrer les corrections</button></form>`;q('#editForm').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget.elements;await api(`/api/v3.1/movements/${id}`,{method:'PATCH',body:JSON.stringify({user_label:form.user_label.value||null,category:form.category.value||null,is_internal_transfer:form.is_internal_transfer.checked,is_exceptional:form.is_exceptional.checked,exclude_from_analytics:form.exclude_from_analytics.checked})});dialog.close();renderMovements();});}catch(error){body.innerHTML=`<div class="notice">Modification indisponible : ${esc(error.message)}</div>`;}}
+  async function openMovement(id){
+    const dialog=q('#editDialog'),body=q('#editBody');dialog.showModal();body.innerHTML=skeleton();
+    try{
+      const [rows,categories,accounts]=await Promise.all([api('/api/v3.1/movements?limit=500'),api('/api/categories'),api('/api/accounts')]);
+      const movement=rows.find(item=>item.id===id);
+      if(!movement)throw new Error('Mouvement introuvable');
+      body.innerHTML=`<form id="editForm" class="stack">
+        <p class="eyebrow">${dateLabel(movement.booking_date)} · ${esc(movement.account_name||'Compte')}</p>
+        <div class="movement-edit-amount ${Number(movement.amount_cents)>=0?'positive':'negative'}">${Number(movement.amount_cents)>=0?'+':''}${euro(movement.amount_cents)}</div>
+        <label class="form-label">Nom affiché<input class="field" name="user_label" value="${esc(movement.user_label||'')}" placeholder="${esc(movement.label)}"></label>
+        <label class="form-label">Catégorie<select class="field" name="category"><option value="">Non catégorisé</option>${categories.map(category=>`<option value="${esc(category.name)}" ${category.name===movement.category?'selected':''}>${esc(category.name)}</option>`).join('')}</select></label>
+        <label class="form-label">Type<select class="field" name="transaction_type">
+          ${[['expense','Dépense'],['income','Revenu'],['refund','Remboursement'],['transfer','Transfert']].map(([value,label])=>`<option value="${value}" ${movement.transaction_type===value?'selected':''}>${label}</option>`).join('')}
+        </select></label>
+        <label class="toggle-row"><span><strong>Transfert interne</strong><small>Ne compte pas comme dépense ou revenu</small></span><input type="checkbox" name="is_internal_transfer" ${movement.is_internal_transfer?'checked':''}></label>
+        <label class="toggle-row"><span><strong>Dépense exceptionnelle</strong><small>Ne doit pas influencer mes habitudes</small></span><input type="checkbox" name="is_exceptional" ${movement.is_exceptional?'checked':''}></label>
+        <label class="toggle-row"><span><strong>Exclure des analyses</strong><small>Garder l'opération visible mais hors statistiques</small></span><input type="checkbox" name="exclude_from_analytics" ${movement.exclude_from_analytics?'checked':''}></label>
+        <button class="btn primary">Enregistrer</button>
+        ${Number(movement.amount_cents)<0?`<button type="button" class="btn secondary" id="makeRecurring">Créer un régulier depuis ce mouvement</button>`:''}
+      </form>`;
+      q('#editForm').addEventListener('submit',async event=>{
+        event.preventDefault();
+        const form=event.currentTarget.elements;
+        await api(`/api/v3.1/movements/${id}`,{method:'PATCH',body:JSON.stringify({
+          user_label:form.user_label.value||null,
+          category:form.category.value||null,
+          transaction_type:form.transaction_type.value,
+          is_internal_transfer:form.is_internal_transfer.checked,
+          is_exceptional:form.is_exceptional.checked,
+          exclude_from_analytics:form.exclude_from_analytics.checked
+        })});
+        dialog.close();renderMovements();
+      });
+      q('#makeRecurring')?.addEventListener('click',()=>{
+        dialog.close();
+        const parsedDay=Math.max(1,Math.min(31,Number(String(movement.booking_date).slice(8,10))||1));
+        openRecurringEditor({
+          account_id:movement.account_id,
+          label:movement.user_label||movement.label,
+          amount_cents:movement.amount_cents,
+          day_of_month:parsedDay,
+          category:movement.category,
+          frequency:'monthly'
+        },accounts,categories);
+      });
+    }catch(error){body.innerHTML=`<div class="notice">Modification indisponible : ${esc(error.message)}</div>`;}
+  }
+
 
   async function renderWealth(){const root=q('[data-screen="wealth"]');root.innerHTML=page('Construction','Patrimoine','Voir ce qui est disponible, investi et encore dû.')+skeleton();try{const [wealth,goals,strategy]=await Promise.all([api('/api/v2.2/wealth'),api('/api/v3.3/goals-forecast?months=12'),api('/api/v3.8/strategy?months=3')]);const liquid=Math.max(0,Number(wealth.cash_cents)||0),savings=Math.max(0,Number(wealth.savings_cents)||0),investments=Math.max(0,Number(wealth.investments_cents)||0),allocationTotal=Math.max(1,liquid+savings+investments);root.innerHTML=page('Construction','Patrimoine','Voir ce qui est disponible, investi et encore dû.')+`<section class="card hero"><div class="hero-top"><span class="status-pill">Vue consolidée</span><span class="confidence-pill">au ${dateLabel(wealth.as_of)}</span></div><p class="hero-label">Patrimoine net</p><div class="hero-amount">${euro(wealth.net_worth_cents)}</div><p class="hero-copy">${esc(strategy.headline)} · surplus stratégique ${euro(strategy.strategic_surplus_cents)}</p><div class="wealth-breakdown"><div><span>Actifs</span><strong>${euro(wealth.total_assets_cents)}</strong></div><div><span>Dettes</span><strong>${euro(wealth.total_debt_cents)}</strong></div><div><span>Protégé</span><strong>${euro(strategy.protected_cents)}</strong></div></div></section><section class="card explain-card"><div class="section-head"><div><p class="eyebrow">Lecture simple</p><h2>Comment lire ce patrimoine</h2></div></div><p class="subtle">Le patrimoine net est calculé ainsi : actifs moins dettes. Les liquidités sont l’argent disponible sur les comptes ; l’épargne et les investissements construisent le patrimoine mais ne sont pas automatiquement dépensables.</p><div class="formula"><div class="formula-row"><span>Actifs</span><strong>${euro(wealth.total_assets_cents)}</strong></div><div class="formula-row"><span>- Dettes</span><strong>${euro(wealth.total_debt_cents)}</strong></div><div class="formula-row formula-result"><span>= Patrimoine net</span><strong>${euro(wealth.net_worth_cents)}</strong></div></div><p class="subtle">La somme protégée correspond aux objectifs et réserves déjà affectés. Elle est séparée de l’argent que tu peux dépenser aujourd’hui.</p></section><section class="card"><div class="section-head"><div><p class="eyebrow">Répartition financière</p><h2>Où se trouve ton argent</h2></div></div><div class="allocation-bar" aria-label="Répartition des avoirs"><i style="width:${liquid/allocationTotal*100}%"></i><i style="width:${savings/allocationTotal*100}%"></i><i style="width:${investments/allocationTotal*100}%"></i></div><div class="allocation-legend"><span>Liquidités<b>${euro(liquid)}</b></span><span>Épargne<b>${euro(savings)}</b></span><span>Investissements<b>${euro(investments)}</b></span></div></section><section class="card"><div class="section-head"><div><p class="eyebrow">Stratégie</p><h2>Ordre d’allocation</h2></div></div>${(strategy.buckets||[]).map((bucket,index)=>`<div class="decision-row"><span class="decision-icon">${index+1}</span><div><strong>${esc(bucket.label)}</strong><small>${esc(bucket.reason)}</small></div><div class="money">${euro(bucket.amount_cents)}</div></div>`).join('')||'<div class="empty-state">Aucune allocation recommandée.</div>'}<p class="subtle">${esc(strategy.method)}</p></section><section class="card"><div class="section-head"><div><p class="eyebrow">Objectifs</p><h2>Trajectoire à 12 mois</h2></div></div>${(goals.goals||[]).map(goal=>{const progress=Math.min(100,Math.max(0,Number(goal.projected_progress_pct)||0));return `<article class="goal-card"><div class="goal-head"><div><strong>${esc(goal.name)}</strong><small>${statusLabel(goal.status)} · cible ${goal.target_date?dateLabel(goal.target_date):'sans date'}</small></div><span class="goal-pct">${Math.round(progress)} %</span></div><div class="progress"><i style="width:${progress}%"></i></div><div class="goal-meta"><span>Effort ${goal.required_monthly_cents==null?'—':euro(goal.required_monthly_cents)+'/mois'}</span><span>Écart ${euro(goal.projected_gap_cents)}</span></div></article>`;}).join('')||'<div class="empty-state">Aucun objectif patrimonial n’est défini.</div>'}</section>`;}catch(error){renderError(root,'Patrimoine',error,'wealth');}}
 
