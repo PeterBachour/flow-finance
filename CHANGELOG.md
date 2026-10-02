@@ -4,6 +4,9 @@
 - Accueil recentré sur le montant réellement disponible, son calcul et les prochaines sorties.
 - Page Mois simplifiée autour du solde de fin de mois, des flux, des réguliers et des principales catégories.
 - Simulation de dépense déplacée sur l'accueil comme action contextuelle, sans écriture dans le ledger.
+- Mouvements refondu en historique type bancaire, filtrable par mois, recherche et type d'opération.
+- Édition d'un mouvement simplifiée : nom, catégorie, type, transfert interne, exceptionnel et exclusion des analyses.
+- Création d'une dépense régulière directement depuis un mouvement débiteur existant.
 - Ajout d'un écran de gestion des dépenses régulières accessible depuis le mois.
 - Modification du montant, du jour, de la prochaine date, de la fréquence, de la catégorie et du compte.
 - Création de nouvelles dépenses régulières sans modifier le ledger bancaire historique.
