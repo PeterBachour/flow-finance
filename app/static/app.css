@@ -441,3 +441,16 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .recurring-manage-row .money{white-space:nowrap}
 .recurring-edit{min-height:40px}
 @media(max-width:560px){.recurring-entry,.recurring-summary{align-items:stretch;flex-direction:column}.recurring-manage-row{grid-template-columns:minmax(0,1fr) auto}.recurring-date{grid-column:1}.recurring-manage-row .money{grid-column:2;grid-row:1}.recurring-edit{grid-column:1/-1;width:100%}}
+
+
+/* V7 decision-first home and month */
+.home-actions-v7{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.action-card-v7{display:grid;gap:5px;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.action-card-v7 span,.action-card-v7 small{color:var(--muted);font-size:.72rem}
+.action-card-v7 strong{font-size:.95rem}
+.compact-decision{grid-template-columns:minmax(0,1fr) auto}
+.month-flow-v7{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.month-balance-v7{grid-template-columns:1fr}
+.month-status-v7>strong{display:block;margin:5px 0;font-size:1.8rem}
+@media(max-width:699px){.home-actions-v7{grid-template-columns:1fr}.month-flow-v7{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:390px){.month-flow-v7{grid-template-columns:1fr 1fr}.action-card-v7{min-height:92px}.compact-decision{grid-template-columns:minmax(0,1fr) auto}}
