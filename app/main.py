@@ -74,6 +74,22 @@ class RecurringIn(BaseModel):
     kind: str = 'commitment'
     certainty: str = 'expected'
     tolerance_cents: int = Field(default=0, ge=0)
+    frequency: str = 'monthly'
+    next_occurrence: date | None = None
+
+
+class RecurringUpdate(BaseModel):
+    account_id: int | None = None
+    label: str | None = Field(default=None, min_length=1, max_length=180)
+    amount_cents: int | None = None
+    day_of_month: int | None = Field(default=None, ge=1, le=31)
+    category: str | None = None
+    kind: str | None = None
+    certainty: str | None = None
+    tolerance_cents: int | None = Field(default=None, ge=0)
+    frequency: str | None = None
+    next_occurrence: date | None = None
+    is_active: bool | None = None
 
 
 class BudgetLineIn(BaseModel):
@@ -235,9 +251,16 @@ def create_planned(payload: PlannedIn):
 
 
 @app.get('/api/recurring')
-def list_recurring():
+def list_recurring(include_inactive: bool = False):
     with connection() as conn:
-        rows = conn.execute('SELECT * FROM recurring_transactions WHERE is_active=1 ORDER BY day_of_month,id').fetchall()
+        where = '' if include_inactive else 'WHERE r.is_active=1'
+        rows = conn.execute(
+            f'''SELECT r.*, a.name AS account_name
+                FROM recurring_transactions r
+                JOIN accounts a ON a.id=r.account_id
+                {where}
+                ORDER BY r.is_active DESC, r.day_of_month, r.id'''
+        ).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -245,12 +268,73 @@ def list_recurring():
 def create_recurring(payload: RecurringIn):
     if payload.certainty not in VALID_CERTAINTY:
         raise HTTPException(400, 'Invalid certainty')
+    if payload.frequency not in {'weekly', 'monthly', 'quarterly', 'yearly'}:
+        raise HTTPException(400, 'Invalid frequency')
     with connection() as conn:
         if not conn.execute('SELECT 1 FROM accounts WHERE id=?', (payload.account_id,)).fetchone():
             raise HTTPException(404, 'Account not found')
-        cur = conn.execute('INSERT INTO recurring_transactions(account_id,label,amount_cents,day_of_month,category,kind,certainty,tolerance_cents) VALUES(?,?,?,?,?,?,?,?)', (payload.account_id,payload.label,payload.amount_cents,payload.day_of_month,payload.category,payload.kind,payload.certainty,payload.tolerance_cents))
-        row = conn.execute('SELECT * FROM recurring_transactions WHERE id=?', (cur.lastrowid,)).fetchone()
+        cur = conn.execute(
+            '''INSERT INTO recurring_transactions(
+                   account_id,label,amount_cents,day_of_month,category,kind,certainty,
+                   tolerance_cents,frequency,next_occurrence
+               ) VALUES(?,?,?,?,?,?,?,?,?,?)''',
+            (
+                payload.account_id, payload.label, payload.amount_cents, payload.day_of_month,
+                payload.category, payload.kind, payload.certainty, payload.tolerance_cents,
+                payload.frequency, payload.next_occurrence.isoformat() if payload.next_occurrence else None,
+            ),
+        )
+        row = conn.execute(
+            'SELECT r.*,a.name account_name FROM recurring_transactions r JOIN accounts a ON a.id=r.account_id WHERE r.id=?',
+            (cur.lastrowid,),
+        ).fetchone()
     return dict(row)
+
+
+@app.patch('/api/recurring/{recurring_id}')
+def update_recurring(recurring_id: int, payload: RecurringUpdate):
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
+        raise HTTPException(400, 'No changes supplied')
+    if data.get('certainty') is not None and data['certainty'] not in VALID_CERTAINTY:
+        raise HTTPException(400, 'Invalid certainty')
+    if data.get('frequency') is not None and data['frequency'] not in {'weekly', 'monthly', 'quarterly', 'yearly'}:
+        raise HTTPException(400, 'Invalid frequency')
+    if isinstance(data.get('next_occurrence'), date):
+        data['next_occurrence'] = data['next_occurrence'].isoformat()
+    if 'is_active' in data:
+        data['is_active'] = int(bool(data['is_active']))
+    allowed = {
+        'account_id','label','amount_cents','day_of_month','category','kind','certainty',
+        'tolerance_cents','frequency','next_occurrence','is_active'
+    }
+    updates = {key: value for key, value in data.items() if key in allowed}
+    with connection() as conn:
+        if not conn.execute('SELECT 1 FROM recurring_transactions WHERE id=?', (recurring_id,)).fetchone():
+            raise HTTPException(404, 'Recurring transaction not found')
+        if updates.get('account_id') is not None and not conn.execute('SELECT 1 FROM accounts WHERE id=?', (updates['account_id'],)).fetchone():
+            raise HTTPException(404, 'Account not found')
+        assignments = ','.join(f'{key}=?' for key in updates)
+        conn.execute(
+            f'UPDATE recurring_transactions SET {assignments} WHERE id=?',
+            (*updates.values(), recurring_id),
+        )
+        row = conn.execute(
+            'SELECT r.*,a.name account_name FROM recurring_transactions r JOIN accounts a ON a.id=r.account_id WHERE r.id=?',
+            (recurring_id,),
+        ).fetchone()
+    return dict(row)
+
+
+@app.delete('/api/recurring/{recurring_id}', status_code=204)
+def disable_recurring(recurring_id: int):
+    with connection() as conn:
+        cursor = conn.execute(
+            'UPDATE recurring_transactions SET is_active=0 WHERE id=? AND is_active=1',
+            (recurring_id,),
+        )
+        if cursor.rowcount == 0:
+            raise HTTPException(404, 'Recurring transaction not found')
 
 
 @app.put('/api/settings/reserve')
