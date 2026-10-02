@@ -68,6 +68,12 @@ CREATE TABLE IF NOT EXISTS recurring_transactions (
     kind TEXT NOT NULL DEFAULT 'commitment',
     certainty TEXT NOT NULL DEFAULT 'expected',
     tolerance_cents INTEGER NOT NULL DEFAULT 0,
+    frequency TEXT NOT NULL DEFAULT 'monthly',
+    variance_cents INTEGER NOT NULL DEFAULT 0,
+    last_occurrence TEXT,
+    next_occurrence TEXT,
+    confidence_score REAL,
+    validation_status TEXT NOT NULL DEFAULT 'confirmed',
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
