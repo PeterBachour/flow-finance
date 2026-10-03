@@ -38,3 +38,64 @@ def test_recurring_management_contract(tmp_path, monkeypatch):
 
         disabled = client.delete(f'/api/recurring/{recurring_id}')
         assert disabled.status_code == 204
+
+
+def test_recurring_frequency_drives_forecasts_and_safe_to_spend(tmp_path, monkeypatch):
+    from datetime import date
+
+    import app.db as db
+    from app.financial_engine_v2 import _recurring_events
+    from app.main import _recurring_forecast_events
+    from app.safe_to_spend import calculate_safe_to_spend
+
+    monkeypatch.setattr(db, 'DB_PATH', tmp_path / 'flow-frequency.db')
+    db.init_db()
+    with db.connection() as conn:
+        account_id = conn.execute(
+            """INSERT INTO accounts(
+                name,current_balance_cents,balance_as_of,include_in_safe_to_spend
+            ) VALUES('Compte fréquence',100000,'2026-10-03',1)"""
+        ).lastrowid
+        fixtures = [
+            ('Hebdo', -1000, 5, 'weekly', '2026-10-05'),
+            ('Mensuel', -2000, 20, 'monthly', '2026-10-20'),
+            ('Trimestriel', -3000, 10, 'quarterly', '2026-10-10'),
+            ('Annuel', -12000, 15, 'yearly', '2026-10-15'),
+        ]
+        for label, amount, day, frequency, next_occurrence in fixtures:
+            conn.execute(
+                """INSERT INTO recurring_transactions(
+                    account_id,label,amount_cents,day_of_month,frequency,next_occurrence,
+                    category,kind,certainty,is_active
+                ) VALUES(?,?,?,?,?,?,?,'commitment','expected',1)""",
+                (account_id, label, amount, day, frequency, next_occurrence, 'Loisirs'),
+            )
+
+        dashboard_events = _recurring_forecast_events(conn, date(2026, 10, 3))
+        weekly_dashboard_dates = [
+            event.due_date.isoformat()
+            for event in dashboard_events
+            if event.label == 'Hebdo'
+        ]
+        assert weekly_dashboard_dates[:5] == [
+            '2026-10-05', '2026-10-12', '2026-10-19', '2026-10-26', '2026-11-02'
+        ]
+        assert [event.due_date.isoformat() for event in dashboard_events if event.label == 'Trimestriel'] == [
+            '2026-10-10'
+        ]
+
+        v2_events = _recurring_events(conn, date(2026, 10, 3), months_ahead=1)
+        weekly_v2_dates = [event.due_date.isoformat() for event in v2_events if event.label == 'Hebdo']
+        assert weekly_v2_dates[:5] == [
+            '2026-10-05', '2026-10-12', '2026-10-19', '2026-10-26', '2026-11-02'
+        ]
+
+        safe = calculate_safe_to_spend(
+            conn,
+            as_of=date(2026, 10, 3),
+            horizon_days=30,
+            stale_reference_date=date(2026, 10, 3),
+        )
+        assert safe.recurring_occurrence_count == 8
+        assert safe.recurring_commitments_cents == 22000
+        assert safe.calculated_safe_to_spend_cents == 78000
