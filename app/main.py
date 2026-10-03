@@ -264,6 +264,165 @@ def list_recurring(include_inactive: bool = False):
     return [dict(r) for r in rows]
 
 
+def _normalize_recurring_label(value: str | None) -> str:
+    return ' '.join((value or '').upper().split())
+
+
+def _recurring_occurrences_for_month(row, month_start: date, month_end: date) -> list[date]:
+    keys = set(row.keys())
+    frequency = str(row['frequency'] if 'frequency' in keys else 'monthly').lower()
+    if frequency not in {'weekly', 'monthly', 'quarterly', 'yearly'}:
+        frequency = 'monthly'
+    day = int(row['day_of_month'] or 1)
+    explicit = None
+    if 'next_occurrence' in keys and row['next_occurrence']:
+        explicit = row['next_occurrence']
+    elif 'next_expected_date' in keys and row['next_expected_date']:
+        explicit = row['next_expected_date']
+
+    if explicit:
+        try:
+            occurrence = date.fromisoformat(explicit)
+        except ValueError:
+            occurrence = month_start
+    else:
+        occurrence = date(
+            month_start.year,
+            month_start.month,
+            min(day, calendar.monthrange(month_start.year, month_start.month)[1]),
+        )
+
+    guard = 0
+    while occurrence > month_start and guard < 240:
+        if frequency == 'weekly':
+            previous = occurrence - timedelta(days=7)
+        else:
+            months = {'monthly': 1, 'quarterly': 3, 'yearly': 12}.get(frequency, 1)
+            month_index = occurrence.year * 12 + occurrence.month - 1 - months
+            year, month_zero = divmod(month_index, 12)
+            month = month_zero + 1
+            previous = date(
+                year,
+                month,
+                min(day, calendar.monthrange(year, month)[1]),
+            )
+        if previous < month_start:
+            break
+        occurrence = previous
+        guard += 1
+
+    while occurrence < month_start and guard < 480:
+        occurrence = _shift_recurring_date(occurrence, frequency, day)
+        guard += 1
+
+    dates: list[date] = []
+    while occurrence <= month_end and guard < 720:
+        dates.append(occurrence)
+        occurrence = _shift_recurring_date(occurrence, frequency, day)
+        guard += 1
+    return dates
+
+
+@app.get('/api/recurring/status')
+def recurring_status(month: str):
+    try:
+        year, month_number = (int(part) for part in month.split('-', 1))
+        month_start = date(year, month_number, 1)
+    except (ValueError, TypeError):
+        raise HTTPException(400, 'Invalid month, expected YYYY-MM')
+    month_end = date(year, month_number, calendar.monthrange(year, month_number)[1])
+    today = date.today()
+
+    with connection() as conn:
+        recurring_rows = conn.execute(
+            "SELECT * FROM recurring_transactions WHERE is_active=1 AND amount_cents<0 ORDER BY id"
+        ).fetchall()
+        tx_rows = conn.execute(
+            """SELECT id,account_id,booking_date,amount_cents,label,user_label,category
+               FROM transactions
+               WHERE booking_date BETWEEN ? AND ?
+                 AND amount_cents<0
+                 AND COALESCE(is_internal_transfer,0)=0
+               ORDER BY booking_date,id""",
+            (
+                (month_start - timedelta(days=5)).isoformat(),
+                (month_end + timedelta(days=5)).isoformat(),
+            ),
+        ).fetchall()
+
+    used_transaction_ids: set[int] = set()
+    items: list[dict] = []
+    paid_cents = 0
+    remaining_cents = 0
+    overdue_cents = 0
+
+    for row in recurring_rows:
+        expected_amount = abs(int(row['amount_cents'] or 0))
+        tolerance = max(int(row['tolerance_cents'] or 0), max(100, int(expected_amount * 0.10)))
+        expected_label = _normalize_recurring_label(row['label'])
+        for due in _recurring_occurrences_for_month(row, month_start, month_end):
+            candidates = []
+            for transaction in tx_rows:
+                transaction_id = int(transaction['id'])
+                if transaction_id in used_transaction_ids:
+                    continue
+                if int(transaction['account_id']) != int(row['account_id']):
+                    continue
+                tx_date = date.fromisoformat(transaction['booking_date'])
+                date_gap = abs((tx_date - due).days)
+                if date_gap > 5:
+                    continue
+                tx_amount = abs(int(transaction['amount_cents'] or 0))
+                amount_gap = abs(tx_amount - expected_amount)
+                if amount_gap > tolerance:
+                    continue
+                tx_label = _normalize_recurring_label(transaction['user_label'] or transaction['label'])
+                label_match = bool(expected_label and tx_label and (
+                    expected_label in tx_label or tx_label in expected_label
+                ))
+                candidates.append((0 if label_match else 1, date_gap, amount_gap, transaction))
+
+            match = min(candidates, key=lambda item: item[:3])[3] if candidates else None
+            if match:
+                used_transaction_ids.add(int(match['id']))
+                status = 'paid'
+                paid_cents += expected_amount
+            elif due < today and month_start <= today:
+                status = 'overdue'
+                overdue_cents += expected_amount
+                remaining_cents += expected_amount
+            else:
+                status = 'upcoming'
+                remaining_cents += expected_amount
+
+            items.append({
+                'recurring_id': int(row['id']),
+                'label': row['label'],
+                'category': row['category'],
+                'frequency': row['frequency'] if 'frequency' in row.keys() else 'monthly',
+                'due_date': due.isoformat(),
+                'amount_cents': int(row['amount_cents']),
+                'status': status,
+                'matched_transaction_id': int(match['id']) if match else None,
+                'matched_booking_date': match['booking_date'] if match else None,
+            })
+
+    items.sort(key=lambda item: (item['due_date'], item['label']))
+    return {
+        'month': month,
+        'summary': {
+            'expected_cents': paid_cents + remaining_cents,
+            'paid_cents': paid_cents,
+            'remaining_cents': remaining_cents,
+            'overdue_cents': overdue_cents,
+            'expected_count': len(items),
+            'paid_count': sum(1 for item in items if item['status'] == 'paid'),
+            'remaining_count': sum(1 for item in items if item['status'] != 'paid'),
+        },
+        'items': items,
+    }
+
+
 @app.post('/api/recurring', status_code=201)
 def create_recurring(payload: RecurringIn):
     if payload.certainty not in VALID_CERTAINTY:
