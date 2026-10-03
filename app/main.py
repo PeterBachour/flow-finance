@@ -338,7 +338,7 @@ def recurring_status(month: str):
             "SELECT * FROM recurring_transactions WHERE is_active=1 AND amount_cents<0 ORDER BY id"
         ).fetchall()
         tx_rows = conn.execute(
-            """SELECT id,account_id,booking_date,amount_cents,label,user_label,category
+            """SELECT *
                FROM transactions
                WHERE booking_date BETWEEN ? AND ?
                  AND amount_cents<0
@@ -376,7 +376,8 @@ def recurring_status(month: str):
                 amount_gap = abs(tx_amount - expected_amount)
                 if amount_gap > tolerance:
                     continue
-                tx_label = _normalize_recurring_label(transaction['user_label'] or transaction['label'])
+                tx_keys = set(transaction.keys())
+                tx_label = _normalize_recurring_label((transaction['user_label'] if 'user_label' in tx_keys else None) or transaction['label'])
                 label_match = bool(expected_label and tx_label and (
                     expected_label in tx_label or tx_label in expected_label
                 ))
