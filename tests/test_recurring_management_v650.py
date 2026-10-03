@@ -99,3 +99,77 @@ def test_recurring_frequency_drives_forecasts_and_safe_to_spend(tmp_path, monkey
         assert safe.recurring_occurrence_count == 8
         assert safe.recurring_commitments_cents == 22000
         assert safe.calculated_safe_to_spend_cents == 78000
+
+
+def test_recurring_month_status_matches_paid_and_remaining(tmp_path, monkeypatch):
+    import app.db as db
+
+    monkeypatch.setattr(db, 'DB_PATH', tmp_path / 'flow-status.db')
+    db.init_db()
+    with db.connection() as conn:
+        account_id = conn.execute(
+            "INSERT INTO accounts(name,current_balance_cents,balance_as_of) VALUES('Compte statut',100000,'2026-10-03')"
+        ).lastrowid
+        conn.execute(
+            """INSERT INTO recurring_transactions(
+                account_id,label,amount_cents,day_of_month,category,frequency,next_occurrence,is_active
+            ) VALUES(?,?,?,?,?,?,?,1)""",
+            (account_id, 'ABONNEMENT TEST', -1999, 2, 'Loisirs', 'monthly', '2026-10-02'),
+        )
+        conn.execute(
+            """INSERT INTO recurring_transactions(
+                account_id,label,amount_cents,day_of_month,category,frequency,next_occurrence,is_active
+            ) VALUES(?,?,?,?,?,?,?,1)""",
+            (account_id, 'NAVIGO TEST', -8880, 8, 'Transport', 'monthly', '2026-10-08'),
+        )
+        conn.execute(
+            """INSERT INTO transactions(
+                account_id,booking_date,amount_cents,label,category,transaction_type,is_internal_transfer
+            ) VALUES(?,?,?,?,?,'expense',0)""",
+            (account_id, '2026-10-02', -1999, 'PRLV ABONNEMENT TEST', 'Loisirs'),
+        )
+
+    with TestClient(app) as client:
+        response = client.get('/api/recurring/status?month=2026-10')
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload['summary']['expected_cents'] == 10879
+        assert payload['summary']['paid_cents'] == 1999
+        assert payload['summary']['remaining_cents'] == 8880
+        assert payload['summary']['paid_count'] == 1
+        assert payload['summary']['remaining_count'] == 1
+        statuses = {item['label']: item['status'] for item in payload['items']}
+        assert statuses['ABONNEMENT TEST'] == 'paid'
+        assert statuses['NAVIGO TEST'] in {'upcoming', 'overdue'}
+
+
+def test_recurring_can_be_paused_and_reactivated(tmp_path, monkeypatch):
+    import app.db as db
+
+    monkeypatch.setattr(db, 'DB_PATH', tmp_path / 'flow-pause.db')
+    db.init_db()
+    with db.connection() as conn:
+        account_id = conn.execute(
+            "INSERT INTO accounts(name,current_balance_cents) VALUES('Compte pause',100000)"
+        ).lastrowid
+
+    with TestClient(app) as client:
+        created = client.post('/api/recurring', json={
+            'account_id': account_id,
+            'label': 'Pause test',
+            'amount_cents': -5000,
+            'day_of_month': 15,
+            'frequency': 'monthly',
+        })
+        recurring_id = created.json()['id']
+
+        paused = client.patch(f'/api/recurring/{recurring_id}', json={'is_active': False})
+        assert paused.status_code == 200
+        assert paused.json()['is_active'] == 0
+
+        active_rows = client.get('/api/recurring').json()
+        assert all(item['id'] != recurring_id for item in active_rows)
+
+        reactivated = client.patch(f'/api/recurring/{recurring_id}', json={'is_active': True})
+        assert reactivated.status_code == 200
+        assert reactivated.json()['is_active'] == 1
