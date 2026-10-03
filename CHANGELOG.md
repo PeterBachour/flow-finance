@@ -9,6 +9,8 @@
 - Création d'une dépense régulière directement depuis un mouvement débiteur existant.
 - Prévisions corrigées pour respecter les fréquences hebdomadaire, mensuelle, trimestrielle et annuelle ainsi que la prochaine occurrence configurée.
 - Safe to Spend et moteur V2 alignés sur la même logique de récurrence, avec tests déterministes des occurrences et montants réservés.
+- Suivi mensuel des réguliers : payé, restant et en retard à partir des mouvements constatés.
+- Mise en pause et réactivation d'un régulier sans suppression de l'historique.
 - Ajout d'un écran de gestion des dépenses régulières accessible depuis le mois.
 - Modification du montant, du jour, de la prochaine date, de la fréquence, de la catégorie et du compte.
 - Création de nouvelles dépenses régulières sans modifier le ledger bancaire historique.
