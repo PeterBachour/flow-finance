@@ -6,7 +6,7 @@ transactions and never presents inferred future events as confirmed facts.
 from __future__ import annotations
 
 import calendar
-from datetime import date
+from datetime import date, timedelta
 from statistics import mean
 
 from .forecast import PlannedEvent, build_forecast
