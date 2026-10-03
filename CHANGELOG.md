@@ -7,6 +7,8 @@
 - Mouvements refondu en historique type bancaire, filtrable par mois, recherche et type d'opération.
 - Édition d'un mouvement simplifiée : nom, catégorie, type, transfert interne, exceptionnel et exclusion des analyses.
 - Création d'une dépense régulière directement depuis un mouvement débiteur existant.
+- Prévisions corrigées pour respecter les fréquences hebdomadaire, mensuelle, trimestrielle et annuelle ainsi que la prochaine occurrence configurée.
+- Safe to Spend et moteur V2 alignés sur la même logique de récurrence, avec tests déterministes des occurrences et montants réservés.
 - Ajout d'un écran de gestion des dépenses régulières accessible depuis le mois.
 - Modification du montant, du jour, de la prochaine date, de la fréquence, de la catégorie et du compte.
 - Création de nouvelles dépenses régulières sans modifier le ledger bancaire historique.
