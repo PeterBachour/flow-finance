@@ -128,7 +128,8 @@
         api('/api/dashboard'),
         api('/api/v6/safe-to-spend'),
         api('/api/v6/trajectory'),
-        api('/api/recurring')
+        api('/api/recurring'),
+        api(`/api/recurring/status?month=${state.month}`).catch(()=>({summary:{},items:[]}))
       ]);
       const components=safeToSpend?.components||{},safe=safeToSpend?.safe_to_spend||{},realistic=trajectory?.scenarios?.realistic||{};
       const events=(realistic.timeline||[]).flatMap(day=>(day.events||[]).map(event=>({...event,date:event.date||day.date})));
@@ -182,7 +183,7 @@
   async function renderMonth(){
     const root=q('[data-screen="month"]');root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+skeleton();
     try{
-      const [monthData,adaptive,closeout,dashboard,recurring]=await Promise.all([
+      const [monthData,adaptive,closeout,dashboard,recurring,recurringStatus]=await Promise.all([
         api(`/api/v2.1/months/${state.month}`),
         api(`/api/v3.5/adaptive-budget?month=${state.month}`),
         api(`/api/v3.5/closeout?month=${state.month}`),
@@ -216,7 +217,7 @@
           </div>
         </section>
         <section class="card recurring-entry recurring-entry-v7">
-          <div><p class="eyebrow">Dépenses régulières</p><h2>${euro(recurringMonthly)} / mois</h2><p class="subtle">${activeRecurring.length} charge(s) active(s). Modifie montants et dates depuis la vue dédiée.</p></div>
+          <div><p class="eyebrow">Dépenses régulières</p><h2>${euro(recurringMonthly)} / mois</h2><p class="subtle">${activeRecurring.length} charge(s) active(s). ${recurringStatus?.summary?.paid_count||0} payée(s) · ${recurringStatus?.summary?.remaining_count||0} restante(s) ce mois.</p></div>
           <button class="btn secondary" data-go="recurring">Gérer</button>
         </section>
         <section class="card">
@@ -436,24 +437,52 @@
   }
 
   async function renderRecurring(){
-    const root=q('[data-screen="recurring"]');root.innerHTML=page('Pilotage','Dépenses régulières','Tout ce qui revient et réduit ton disponible.')+skeleton();
+    const root=q('[data-screen="recurring"]');
+    root.innerHTML=page('Pilotage','Dépenses régulières','Tout ce qui revient et réduit ton disponible.')+skeleton();
     try{
-      const [recurring,accounts,categories]=await Promise.all([api('/api/recurring?include_inactive=true'),api('/api/accounts'),api('/api/categories')]);
-      const active=(recurring||[]).filter(item=>Number(item.is_active)!==0&&Number(item.amount_cents)<0);
+      const data=await Promise.all([api('/api/recurring?include_inactive=true'),api('/api/accounts'),api('/api/categories')]);
+      const recurring=data[0]||[],accounts=data[1]||[],categories=data[2]||[];
+      const active=recurring.filter(item=>Number(item.is_active)!==0&&Number(item.amount_cents)<0);
+      const inactive=recurring.filter(item=>Number(item.is_active)===0&&Number(item.amount_cents)<0);
       const monthly=active.reduce((sum,item)=>sum+monthlyEquivalent(item),0);
-      const rows=active.map(item=>`<article class="recurring-manage-row">
-        <div class="recurring-main"><strong>${esc(item.label)}</strong><small>${esc(item.category||'Non catégorisé')} · ${frequencyLabel(item.frequency)}</small></div>
-        <div class="recurring-date"><span>Prochaine date</span><strong>${item.next_occurrence?dateLabel(item.next_occurrence):`le ${item.day_of_month||'—'}`}</strong></div>
-        <div class="money negative">${euro(item.amount_cents)}</div>
-        <button class="btn secondary recurring-edit" data-id="${item.id}">Modifier</button>
-      </article>`).join('');
-      root.innerHTML=page('Pilotage','Dépenses régulières','Tout ce qui revient et réduit ton disponible.')+`
-        <section class="card recurring-summary"><div><p class="eyebrow">Réservé chaque mois</p><strong>${euro(monthly)}</strong><p class="subtle">Équivalent mensuel des dépenses régulières actives.</p></div><button class="btn primary" id="addRecurring">Ajouter</button></section>
-        <section class="card"><div class="section-head"><div><p class="eyebrow">Calendrier</p><h2>${active.length} dépense(s) active(s)</h2></div></div><div class="recurring-manage-list">${rows||'<div class="empty-state">Aucune dépense régulière active.</div>'}</div></section>
-        <section class="card recurring-help"><p class="eyebrow">Impact prévisionnel</p><p class="subtle">Le montant, le jour et la fréquence servent au forecast. Une modification change les prévisions futures, jamais les transactions bancaires déjà constatées.</p></section>
-        <button class="btn secondary" data-go="month">Retour au mois</button>`;
+      const activeRows=active.map(item=>
+        '<article class="recurring-manage-row">'+
+          '<div class="recurring-main"><strong>'+esc(item.label)+'</strong><small>'+esc(item.category||'Non catégorisé')+' · '+frequencyLabel(item.frequency)+'</small></div>'+
+          '<div class="recurring-date"><span>Prochaine date</span><strong>'+(item.next_occurrence?dateLabel(item.next_occurrence):'le '+(item.day_of_month||'—'))+'</strong></div>'+
+          '<div class="money negative">'+euro(item.amount_cents)+'</div>'+
+          '<div class="recurring-actions"><button class="btn secondary recurring-edit" data-id="'+item.id+'">Modifier</button><button class="btn secondary recurring-toggle" data-id="'+item.id+'" data-active="1">Mettre en pause</button></div>'+
+        '</article>'
+      ).join('');
+      const inactiveRows=inactive.map(item=>
+        '<article class="recurring-manage-row recurring-paused">'+
+          '<div class="recurring-main"><strong>'+esc(item.label)+'</strong><small>'+esc(item.category||'Non catégorisé')+' · '+frequencyLabel(item.frequency)+' · En pause</small></div>'+
+          '<div class="money negative">'+euro(item.amount_cents)+'</div>'+
+          '<div class="recurring-actions"><button class="btn secondary recurring-edit" data-id="'+item.id+'">Modifier</button><button class="btn secondary recurring-toggle" data-id="'+item.id+'" data-active="0">Réactiver</button></div>'+
+        '</article>'
+      ).join('');
+      root.innerHTML=page('Pilotage','Dépenses régulières','Tout ce qui revient et réduit ton disponible.')+
+        '<section class="card recurring-summary"><div><p class="eyebrow">Réservé chaque mois</p><strong>'+euro(monthly)+'</strong><p class="subtle">Équivalent mensuel des dépenses régulières actives.</p></div><button class="btn primary" id="addRecurring">Ajouter</button></section>'+
+        '<section class="card"><div class="section-head"><div><p class="eyebrow">Actifs</p><h2>'+active.length+' dépense(s)</h2></div></div><div class="recurring-manage-list">'+(activeRows||'<div class="empty-state">Aucune dépense régulière active.</div>')+'</div></section>'+
+        (inactive.length?'<section class="card"><details><summary class="recurring-paused-summary"><span><p class="eyebrow">En pause</p><strong>'+inactive.length+' dépense(s)</strong></span></summary><div class="recurring-manage-list">'+inactiveRows+'</div></details></section>':'')+
+        '<section class="card recurring-help"><p class="eyebrow">Impact prévisionnel</p><p class="subtle">Une dépense mise en pause est retirée des prévisions. La réactivation la remet immédiatement dans le forecast.</p></section>'+
+        '<button class="btn secondary" data-go="month">Retour au mois</button>';
       q('#addRecurring').addEventListener('click',()=>openRecurringEditor({},accounts,categories));
-      root.querySelectorAll('.recurring-edit').forEach(button=>button.addEventListener('click',()=>openRecurringEditor(active.find(item=>String(item.id)===button.dataset.id)||{},accounts,categories)));
+      root.querySelectorAll('.recurring-edit').forEach(button=>button.addEventListener('click',()=>{
+        const item=recurring.find(entry=>String(entry.id)===button.dataset.id)||{};
+        openRecurringEditor(item,accounts,categories);
+      }));
+      root.querySelectorAll('.recurring-toggle').forEach(button=>button.addEventListener('click',async()=>{
+        const activeNow=button.dataset.active==='1';
+        const item=recurring.find(entry=>String(entry.id)===button.dataset.id);
+        const label=item?.label||'cette dépense régulière';
+        const message=activeNow?'Mettre '+label+' en pause ?':'Réactiver '+label+' ?';
+        if(!window.confirm(message))return;
+        button.disabled=true;
+        try{
+          await api('/api/recurring/'+button.dataset.id,{method:'PATCH',body:JSON.stringify({is_active:!activeNow})});
+          renderRecurring();
+        }catch(error){button.disabled=false;alert(error.message);}
+      }));
       bindNavigation(root);
     }catch(error){renderError(root,'Dépenses régulières',error,'recurring');}
   }
