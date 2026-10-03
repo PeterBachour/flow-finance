@@ -74,6 +74,22 @@ class RecurringIn(BaseModel):
     kind: str = 'commitment'
     certainty: str = 'expected'
     tolerance_cents: int = Field(default=0, ge=0)
+    frequency: str = 'monthly'
+    next_occurrence: date | None = None
+
+
+class RecurringUpdate(BaseModel):
+    account_id: int | None = None
+    label: str | None = Field(default=None, min_length=1, max_length=180)
+    amount_cents: int | None = None
+    day_of_month: int | None = Field(default=None, ge=1, le=31)
+    category: str | None = None
+    kind: str | None = None
+    certainty: str | None = None
+    tolerance_cents: int | None = Field(default=None, ge=0)
+    frequency: str | None = None
+    next_occurrence: date | None = None
+    is_active: bool | None = None
 
 
 class BudgetLineIn(BaseModel):
@@ -235,22 +251,250 @@ def create_planned(payload: PlannedIn):
 
 
 @app.get('/api/recurring')
-def list_recurring():
+def list_recurring(include_inactive: bool = False):
     with connection() as conn:
-        rows = conn.execute('SELECT * FROM recurring_transactions WHERE is_active=1 ORDER BY day_of_month,id').fetchall()
+        where = '' if include_inactive else 'WHERE r.is_active=1'
+        rows = conn.execute(
+            f'''SELECT r.*, a.name AS account_name
+                FROM recurring_transactions r
+                JOIN accounts a ON a.id=r.account_id
+                {where}
+                ORDER BY r.is_active DESC, r.day_of_month, r.id'''
+        ).fetchall()
     return [dict(r) for r in rows]
+
+
+def _normalize_recurring_label(value: str | None) -> str:
+    return ' '.join((value or '').upper().split())
+
+
+def _recurring_occurrences_for_month(row, month_start: date, month_end: date) -> list[date]:
+    keys = set(row.keys())
+    frequency = str(row['frequency'] if 'frequency' in keys else 'monthly').lower()
+    if frequency not in {'weekly', 'monthly', 'quarterly', 'yearly'}:
+        frequency = 'monthly'
+    day = int(row['day_of_month'] or 1)
+    explicit = None
+    if 'next_occurrence' in keys and row['next_occurrence']:
+        explicit = row['next_occurrence']
+    elif 'next_expected_date' in keys and row['next_expected_date']:
+        explicit = row['next_expected_date']
+
+    if explicit:
+        try:
+            occurrence = date.fromisoformat(explicit)
+        except ValueError:
+            occurrence = month_start
+    else:
+        occurrence = date(
+            month_start.year,
+            month_start.month,
+            min(day, calendar.monthrange(month_start.year, month_start.month)[1]),
+        )
+
+    guard = 0
+    while occurrence > month_start and guard < 240:
+        if frequency == 'weekly':
+            previous = occurrence - timedelta(days=7)
+        else:
+            months = {'monthly': 1, 'quarterly': 3, 'yearly': 12}.get(frequency, 1)
+            month_index = occurrence.year * 12 + occurrence.month - 1 - months
+            year, month_zero = divmod(month_index, 12)
+            month = month_zero + 1
+            previous = date(
+                year,
+                month,
+                min(day, calendar.monthrange(year, month)[1]),
+            )
+        if previous < month_start:
+            break
+        occurrence = previous
+        guard += 1
+
+    while occurrence < month_start and guard < 480:
+        occurrence = _shift_recurring_date(occurrence, frequency, day)
+        guard += 1
+
+    dates: list[date] = []
+    while occurrence <= month_end and guard < 720:
+        dates.append(occurrence)
+        occurrence = _shift_recurring_date(occurrence, frequency, day)
+        guard += 1
+    return dates
+
+
+@app.get('/api/recurring/status')
+def recurring_status(month: str):
+    try:
+        year, month_number = (int(part) for part in month.split('-', 1))
+        month_start = date(year, month_number, 1)
+    except (ValueError, TypeError):
+        raise HTTPException(400, 'Invalid month, expected YYYY-MM')
+    month_end = date(year, month_number, calendar.monthrange(year, month_number)[1])
+    today = date.today()
+
+    with connection() as conn:
+        recurring_rows = conn.execute(
+            "SELECT * FROM recurring_transactions WHERE is_active=1 AND amount_cents<0 ORDER BY id"
+        ).fetchall()
+        tx_rows = conn.execute(
+            """SELECT *
+               FROM transactions
+               WHERE booking_date BETWEEN ? AND ?
+                 AND amount_cents<0
+                 AND COALESCE(is_internal_transfer,0)=0
+               ORDER BY booking_date,id""",
+            (
+                (month_start - timedelta(days=5)).isoformat(),
+                (month_end + timedelta(days=5)).isoformat(),
+            ),
+        ).fetchall()
+
+    used_transaction_ids: set[int] = set()
+    items: list[dict] = []
+    paid_cents = 0
+    remaining_cents = 0
+    overdue_cents = 0
+
+    for row in recurring_rows:
+        expected_amount = abs(int(row['amount_cents'] or 0))
+        tolerance = max(int(row['tolerance_cents'] or 0), max(100, int(expected_amount * 0.10)))
+        expected_label = _normalize_recurring_label(row['label'])
+        for due in _recurring_occurrences_for_month(row, month_start, month_end):
+            candidates = []
+            for transaction in tx_rows:
+                transaction_id = int(transaction['id'])
+                if transaction_id in used_transaction_ids:
+                    continue
+                if int(transaction['account_id']) != int(row['account_id']):
+                    continue
+                tx_date = date.fromisoformat(transaction['booking_date'])
+                date_gap = abs((tx_date - due).days)
+                if date_gap > 5:
+                    continue
+                tx_amount = abs(int(transaction['amount_cents'] or 0))
+                amount_gap = abs(tx_amount - expected_amount)
+                if amount_gap > tolerance:
+                    continue
+                tx_keys = set(transaction.keys())
+                tx_label = _normalize_recurring_label((transaction['user_label'] if 'user_label' in tx_keys else None) or transaction['label'])
+                label_match = bool(expected_label and tx_label and (
+                    expected_label in tx_label or tx_label in expected_label
+                ))
+                candidates.append((0 if label_match else 1, date_gap, amount_gap, transaction))
+
+            match = min(candidates, key=lambda item: item[:3])[3] if candidates else None
+            if match:
+                used_transaction_ids.add(int(match['id']))
+                status = 'paid'
+                paid_cents += expected_amount
+            elif due < today and month_start <= today:
+                status = 'overdue'
+                overdue_cents += expected_amount
+                remaining_cents += expected_amount
+            else:
+                status = 'upcoming'
+                remaining_cents += expected_amount
+
+            items.append({
+                'recurring_id': int(row['id']),
+                'label': row['label'],
+                'category': row['category'],
+                'frequency': row['frequency'] if 'frequency' in row.keys() else 'monthly',
+                'due_date': due.isoformat(),
+                'amount_cents': int(row['amount_cents']),
+                'status': status,
+                'matched_transaction_id': int(match['id']) if match else None,
+                'matched_booking_date': match['booking_date'] if match else None,
+            })
+
+    items.sort(key=lambda item: (item['due_date'], item['label']))
+    return {
+        'month': month,
+        'summary': {
+            'expected_cents': paid_cents + remaining_cents,
+            'paid_cents': paid_cents,
+            'remaining_cents': remaining_cents,
+            'overdue_cents': overdue_cents,
+            'expected_count': len(items),
+            'paid_count': sum(1 for item in items if item['status'] == 'paid'),
+            'remaining_count': sum(1 for item in items if item['status'] != 'paid'),
+        },
+        'items': items,
+    }
 
 
 @app.post('/api/recurring', status_code=201)
 def create_recurring(payload: RecurringIn):
     if payload.certainty not in VALID_CERTAINTY:
         raise HTTPException(400, 'Invalid certainty')
+    if payload.frequency not in {'weekly', 'monthly', 'quarterly', 'yearly'}:
+        raise HTTPException(400, 'Invalid frequency')
     with connection() as conn:
         if not conn.execute('SELECT 1 FROM accounts WHERE id=?', (payload.account_id,)).fetchone():
             raise HTTPException(404, 'Account not found')
-        cur = conn.execute('INSERT INTO recurring_transactions(account_id,label,amount_cents,day_of_month,category,kind,certainty,tolerance_cents) VALUES(?,?,?,?,?,?,?,?)', (payload.account_id,payload.label,payload.amount_cents,payload.day_of_month,payload.category,payload.kind,payload.certainty,payload.tolerance_cents))
-        row = conn.execute('SELECT * FROM recurring_transactions WHERE id=?', (cur.lastrowid,)).fetchone()
+        cur = conn.execute(
+            '''INSERT INTO recurring_transactions(
+                   account_id,label,amount_cents,day_of_month,category,kind,certainty,
+                   tolerance_cents,frequency,next_occurrence
+               ) VALUES(?,?,?,?,?,?,?,?,?,?)''',
+            (
+                payload.account_id, payload.label, payload.amount_cents, payload.day_of_month,
+                payload.category, payload.kind, payload.certainty, payload.tolerance_cents,
+                payload.frequency, payload.next_occurrence.isoformat() if payload.next_occurrence else None,
+            ),
+        )
+        row = conn.execute(
+            'SELECT r.*,a.name account_name FROM recurring_transactions r JOIN accounts a ON a.id=r.account_id WHERE r.id=?',
+            (cur.lastrowid,),
+        ).fetchone()
     return dict(row)
+
+
+@app.patch('/api/recurring/{recurring_id}')
+def update_recurring(recurring_id: int, payload: RecurringUpdate):
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
+        raise HTTPException(400, 'No changes supplied')
+    if data.get('certainty') is not None and data['certainty'] not in VALID_CERTAINTY:
+        raise HTTPException(400, 'Invalid certainty')
+    if data.get('frequency') is not None and data['frequency'] not in {'weekly', 'monthly', 'quarterly', 'yearly'}:
+        raise HTTPException(400, 'Invalid frequency')
+    if isinstance(data.get('next_occurrence'), date):
+        data['next_occurrence'] = data['next_occurrence'].isoformat()
+    if 'is_active' in data:
+        data['is_active'] = int(bool(data['is_active']))
+    allowed = {
+        'account_id','label','amount_cents','day_of_month','category','kind','certainty',
+        'tolerance_cents','frequency','next_occurrence','is_active'
+    }
+    updates = {key: value for key, value in data.items() if key in allowed}
+    with connection() as conn:
+        if not conn.execute('SELECT 1 FROM recurring_transactions WHERE id=?', (recurring_id,)).fetchone():
+            raise HTTPException(404, 'Recurring transaction not found')
+        if updates.get('account_id') is not None and not conn.execute('SELECT 1 FROM accounts WHERE id=?', (updates['account_id'],)).fetchone():
+            raise HTTPException(404, 'Account not found')
+        assignments = ','.join(f'{key}=?' for key in updates)
+        conn.execute(
+            f'UPDATE recurring_transactions SET {assignments} WHERE id=?',
+            (*updates.values(), recurring_id),
+        )
+        row = conn.execute(
+            'SELECT r.*,a.name account_name FROM recurring_transactions r JOIN accounts a ON a.id=r.account_id WHERE r.id=?',
+            (recurring_id,),
+        ).fetchone()
+    return dict(row)
+
+
+@app.delete('/api/recurring/{recurring_id}', status_code=204)
+def disable_recurring(recurring_id: int):
+    with connection() as conn:
+        cursor = conn.execute(
+            'UPDATE recurring_transactions SET is_active=0 WHERE id=? AND is_active=1',
+            (recurring_id,),
+        )
+        if cursor.rowcount == 0:
+            raise HTTPException(404, 'Recurring transaction not found')
 
 
 @app.put('/api/settings/reserve')
@@ -317,43 +561,62 @@ def allocate_goal(goal_id: int, payload: AllocationIn):
     return dict(row)
 
 
+def _shift_recurring_date(current: date, frequency: str, day_of_month: int) -> date:
+    frequency = (frequency or 'monthly').lower()
+    if frequency == 'weekly':
+        return current + timedelta(days=7)
+
+    months = {'monthly': 1, 'quarterly': 3, 'yearly': 12}.get(frequency, 1)
+    month_index = current.year * 12 + (current.month - 1) + months
+    year, month_zero = divmod(month_index, 12)
+    month = month_zero + 1
+    day = min(max(1, int(day_of_month or current.day)), calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def _first_recurring_date(today: date, day_of_month: int, frequency: str, explicit_date: str | None) -> date:
+    if explicit_date:
+        try:
+            occurrence = date.fromisoformat(explicit_date)
+        except ValueError:
+            occurrence = today
+    else:
+        day = min(max(1, int(day_of_month or 1)), calendar.monthrange(today.year, today.month)[1])
+        occurrence = date(today.year, today.month, day)
+
+    while occurrence < today:
+        occurrence = _shift_recurring_date(occurrence, frequency, day_of_month)
+    return occurrence
+
+
 def _recurring_forecast_events(conn, today: date) -> list[PlannedEvent]:
     horizon_end = (today.replace(day=28) + timedelta(days=35)).replace(day=1)
     horizon_end = horizon_end + timedelta(days=calendar.monthrange(horizon_end.year, horizon_end.month)[1] - 1)
-    rows = conn.execute("""
+
+    recurring_columns = {row[1] for row in conn.execute('PRAGMA table_info(recurring_transactions)').fetchall()}
+    legacy_next = ', next_expected_date' if 'next_expected_date' in recurring_columns else ''
+    rows = conn.execute(f"""
         SELECT label, amount_cents, day_of_month, certainty,
-               next_expected_date, source_type
+               frequency, next_occurrence, source_type{legacy_next}
         FROM recurring_transactions
         WHERE is_active=1 AND amount_cents<>0
         ORDER BY id
     """).fetchall()
+
     events: list[PlannedEvent] = []
     for row in rows:
-        if row['next_expected_date']:
-            try:
-                occurrence = date.fromisoformat(row['next_expected_date'])
-            except ValueError:
-                occurrence = today
-        else:
-            day = min(
-                max(1, int(row['day_of_month'] or 1)),
-                calendar.monthrange(today.year, today.month)[1],
-            )
-            occurrence = date(today.year, today.month, day)
-            if occurrence < today:
-                next_month = (today.replace(day=28) + timedelta(days=4)).replace(day=1)
-                occurrence = date(
-                    next_month.year,
-                    next_month.month,
-                    min(int(row['day_of_month'] or 1), calendar.monthrange(next_month.year, next_month.month)[1]),
-                )
-        while occurrence < today:
-            next_month = (occurrence.replace(day=28) + timedelta(days=4)).replace(day=1)
-            occurrence = date(
-                next_month.year,
-                next_month.month,
-                min(int(row['day_of_month'] or 1), calendar.monthrange(next_month.year, next_month.month)[1]),
-            )
+        frequency = (row['frequency'] or 'monthly').lower()
+        if frequency not in {'weekly', 'monthly', 'quarterly', 'yearly'}:
+            frequency = 'monthly'
+        explicit_date = row['next_occurrence']
+        if not explicit_date and 'next_expected_date' in recurring_columns:
+            explicit_date = row['next_expected_date']
+        occurrence = _first_recurring_date(
+            today,
+            int(row['day_of_month'] or 1),
+            frequency,
+            explicit_date,
+        )
         while occurrence <= horizon_end:
             events.append(PlannedEvent(
                 due_date=occurrence,
@@ -363,12 +626,12 @@ def _recurring_forecast_events(conn, today: date) -> list[PlannedEvent]:
                 kind='commitment' if int(row['amount_cents']) < 0 else 'structuring_income',
                 source='recurring',
             ))
-            next_month = (occurrence.replace(day=28) + timedelta(days=4)).replace(day=1)
-            occurrence = date(
-                next_month.year,
-                next_month.month,
-                min(int(row['day_of_month'] or 1), calendar.monthrange(next_month.year, next_month.month)[1]),
+            occurrence = _shift_recurring_date(
+                occurrence,
+                frequency,
+                int(row['day_of_month'] or occurrence.day),
             )
+
     salary = conn.execute("""
         SELECT amount_cents, booking_date, label
         FROM transactions
@@ -380,7 +643,8 @@ def _recurring_forecast_events(conn, today: date) -> list[PlannedEvent]:
         ORDER BY booking_date DESC, id DESC
         LIMIT 6
     """).fetchall()
-    if salary:
+    has_recurring_income = any(event.amount_cents > 0 and event.source == 'recurring' for event in events)
+    if salary and not has_recurring_income:
         month_end_salaries = [
             row for row in salary
             if date.fromisoformat(row['booking_date']).day >= 25
@@ -396,12 +660,7 @@ def _recurring_forecast_events(conn, today: date) -> list[PlannedEvent]:
         )
         next_salary = salary_date
         while next_salary <= today:
-            next_month = (next_salary.replace(day=28) + timedelta(days=4)).replace(day=1)
-            next_salary = date(
-                next_month.year,
-                next_month.month,
-                min(salary_date.day, calendar.monthrange(next_month.year, next_month.month)[1]),
-            )
+            next_salary = _shift_recurring_date(next_salary, 'monthly', salary_date.day)
         if next_salary <= horizon_end:
             events.append(PlannedEvent(
                 due_date=next_salary,

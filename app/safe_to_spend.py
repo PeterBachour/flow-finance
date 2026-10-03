@@ -68,21 +68,26 @@ def _table_exists(conn, name: str) -> bool:
     return bool(row)
 
 
-def _next_month_same_day(value: date, day: int) -> date:
-    year = value.year + (1 if value.month == 12 else 0)
-    month = 1 if value.month == 12 else value.month + 1
+def _advance_recurring_date(value: date, frequency: str, day: int) -> date:
+    frequency = (frequency or 'monthly').lower()
+    if frequency == 'weekly':
+        return value + timedelta(days=7)
+    months = {'monthly': 1, 'quarterly': 3, 'yearly': 12}.get(frequency, 1)
+    month_index = value.year * 12 + value.month - 1 + months
+    year, month_zero = divmod(month_index, 12)
+    month = month_zero + 1
     max_day = calendar.monthrange(year, month)[1]
     return date(year, month, min(max(1, day), max_day))
 
 
-def _recurring_dates(first: date, usual_day: int, start: date, end: date) -> list[date]:
+def _recurring_dates(first: date, usual_day: int, frequency: str, start: date, end: date) -> list[date]:
     current = first
     while current < start:
-        current = _next_month_same_day(current, usual_day)
+        current = _advance_recurring_date(current, frequency, usual_day)
     result: list[date] = []
     while current <= end:
         result.append(current)
-        current = _next_month_same_day(current, usual_day)
+        current = _advance_recurring_date(current, frequency, usual_day)
     return result
 
 
@@ -290,11 +295,9 @@ def calculate_safe_to_spend(
     planned_commitments = sum(abs(int(row['amount_cents'])) for row in planned_rows) + cycle_planned
 
     recurring_rows = conn.execute('''
-        SELECT id,label,amount_cents,usual_day,day_of_month,next_expected_date,last_seen_date,
-               source_type,tolerance_cents,category,kind
+        SELECT *
         FROM recurring_transactions
         WHERE is_active=1
-          AND detection_status='accepted'
           AND amount_cents<0
           AND COALESCE(kind,'commitment')='commitment'
           AND COALESCE(category,'')<>'Transfert interne'
@@ -304,19 +307,49 @@ def calculate_safe_to_spend(
     recurring_included_count = 0
     recurring_stale_excluded_count = 0
     for row in recurring_rows:
-        source_type = (row['source_type'] or '').lower()
+        keys = set(row.keys())
+        detection_status = str(row['detection_status'] if 'detection_status' in keys else 'accepted').lower()
+        if detection_status != 'accepted':
+            continue
+
+        source_type = ((row['source_type'] if 'source_type' in keys else '') or '').lower()
+        last_seen_date = row['last_seen_date'] if 'last_seen_date' in keys else None
         auto_detected = source_type in {'history', 'auto', 'detected'}
-        if auto_detected and not recurring_is_fresh(row['last_seen_date'], as_of):
+        if auto_detected and not recurring_is_fresh(last_seen_date, as_of):
             recurring_stale_excluded_count += 1
             continue
 
-        usual_day = int(row['usual_day'] or row['day_of_month'] or 1)
-        if row['next_expected_date']:
-            first = date.fromisoformat(row['next_expected_date'])
+        usual_day = int(
+            (row['usual_day'] if 'usual_day' in keys else None)
+            or row['day_of_month']
+            or 1
+        )
+        frequency = str(row['frequency'] if 'frequency' in keys else 'monthly').lower()
+        if frequency not in {'weekly', 'monthly', 'quarterly', 'yearly'}:
+            frequency = 'monthly'
+
+        explicit = None
+        if 'next_occurrence' in keys and row['next_occurrence']:
+            explicit = row['next_occurrence']
+        elif 'next_expected_date' in keys and row['next_expected_date']:
+            explicit = row['next_expected_date']
+
+        if explicit:
+            try:
+                first = date.fromisoformat(explicit)
+            except ValueError:
+                first = as_of
         else:
             max_day = calendar.monthrange(as_of.year, as_of.month)[1]
             first = date(as_of.year, as_of.month, min(max(1, usual_day), max_day))
-        dates = _recurring_dates(first, usual_day, as_of + timedelta(days=1), horizon_end)
+
+        dates = _recurring_dates(
+            first,
+            usual_day,
+            frequency,
+            as_of + timedelta(days=1),
+            horizon_end,
+        )
         effective_dates = [
             d for d in dates
             if not _planned_overlaps_recurring(planned_rows, row, d)

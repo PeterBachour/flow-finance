@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.4.20';
+  const VERSION='6.5.0';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -93,56 +93,142 @@
     return `<section class="card forecast-accuracy" aria-labelledby="forecastAccuracyTitle"><div class="section-head"><div><p class="eyebrow">Fiabilité des prévisions</p><h2 id="forecastAccuracyTitle">Prévu et constaté</h2></div><span class="confidence-pill">${Number(data?.snapshot_count||0)} capture(s)</span></div><p class="subtle">Comparaison aux soldes confirmés des relevés. ${esc(detail)}</p>${hasResults?`<div class="forecast-accuracy-grid">${rows}</div><p class="accuracy-footnote">La valeur moyenne affichée indique la différence entre le solde prévu et le solde du relevé.</p>`:rows}</section>`;
   }
 
+  function openSimulation(){
+    const dialog=q('#editDialog'),body=q('#editBody');
+    const today=new Date().toISOString().slice(0,10);
+    body.innerHTML=`<form id="quickSimulationForm" class="stack">
+      <p class="subtle">Teste un achat sans créer de transaction réelle. Flow compare le disponible actuel et le disponible après cette dépense.</p>
+      <label class="form-label">Montant en euros<input class="field" name="amount" type="number" min="0.01" step="0.01" required placeholder="Exemple : 250"></label>
+      <label class="form-label">Date<input class="field" name="date" type="date" required value="${today}"></label>
+      <label class="form-label">Libellé<input class="field" name="label" maxlength="180" value="Dépense simulée"></label>
+      <button class="btn primary">Calculer l'impact</button>
+      <div id="quickSimulationResult"></div>
+    </form>`;
+    dialog.showModal();
+    q('#quickSimulationForm').addEventListener('submit',async event=>{
+      event.preventDefault();
+      const form=event.currentTarget.elements,result=q('#quickSimulationResult');
+      result.innerHTML=skeleton();
+      try{
+        const data=await api('/api/simulations',{method:'POST',body:JSON.stringify({
+          label:form.label.value||'Dépense simulée',
+          amount_cents:-Math.round(Math.abs(Number(form.amount.value))*100),
+          due_date:form.date.value
+        })});
+        const base=data.baseline||{},sim=data.simulated||{},delta=Number(data.impact?.safe_to_spend_delta_cents||0);
+        result.innerHTML=`<div class="simulation-result-v7"><div><span>Disponible actuel</span><strong>${euro(base.safe_to_spend_cents)}</strong></div><div><span>Après achat</span><strong class="${Number(sim.safe_to_spend_cents)>=0?'positive':'danger'}">${euro(sim.safe_to_spend_cents)}</strong></div><div><span>Impact</span><strong class="danger">${euro(delta)}</strong></div></div>`;
+      }catch(error){result.innerHTML=`<div class="notice">Simulation indisponible : ${esc(error.message)}</div>`;}
+    });
+  }
+
   async function renderHome(){
-    const root=q('[data-screen="home"]');root.innerHTML=page('Aujourd’hui',todayLabel(),'Ta situation utile, avant toute décision.')+skeleton();
+    const root=q('[data-screen="home"]');root.innerHTML=page('Aujourd’hui',todayLabel(),'Ce que tu peux réellement dépenser, et pourquoi.')+skeleton();
     try{
-      const [overview,plan,inbox,dashboard,safeToSpend,trajectory,recurring,forecastAccuracy]=await Promise.all([api('/api/v3/overview'),api('/api/v3.4/action-plan?months=3'),api('/api/v3.6/decision-inbox'),api('/api/dashboard'),api('/api/v6/safe-to-spend'),api('/api/v6/trajectory'),api('/api/recurring'),api('/api/v6/forecast-accuracy').catch(()=>null)]);
-      const verified=dashboard.forecast||{},account=dashboard.accounts?.[0]||{},verifiedIncome=verified.next_income;
-      const certified=safeToSpend||{},components=certified.components||{},certifiedSafe=certified.safe_to_spend||{},realistic=trajectory?.scenarios?.realistic||{},overviewSafe=overview.cockpit?.safe_to_spend||{},health=overview.health||{},explanation=overviewSafe.explanation||{};
-      const certifiedEvents=(realistic.timeline||[]).flatMap(day=>day.events||[]);
-      const confirmedOutflows=certifiedEvents.filter(event=>Number(event.amount_cents)<0).map(event=>({...event,due_date:event.due_date||event.date}));
-      const nextRecurring=(recurring||[]).filter(item=>Number(item.is_active)!==0&&Number(item.amount_cents)<0).map(item=>({...item,due_date:item.next_occurrence||item.next_expected_date||null})).filter(item=>item.due_date);
-      const cockpit={
-        ...(overview.cockpit||{}),
-        opening_balance_cents:components.current_balance_cents??account.current_balance_cents,
-        safe_to_spend:{
-          ...overviewSafe,
-          today_cents:certifiedSafe.today_cents??certifiedSafe.calculated_cents??0,
-          week_cents:certifiedSafe.today_cents??certifiedSafe.calculated_cents??0,
-          until_income_cents:certifiedSafe.today_cents??certifiedSafe.calculated_cents??0,
-          status:certifiedSafe.calculated_cents>0?'prudent':'critical',
-          explanation:{
-            ...explanation,
-            safety_reserve_cents:components.safety_reserve_cents??0,
-            goal_allocations_cents:components.goal_reservations_cents??0,
-            days_to_horizon:certified.horizon?.days??0
-          }
-        },
-        forecast:{
-          ...verified,
-          low_point:{balance_cents:realistic.low_point?.balance_cents??certified.projections?.realistic?.low_point_cents},
-          timeline:realistic.timeline||verified.timeline||[]
-        },
-        next_income:verifiedIncome,
-        next_outflow:confirmedOutflows[0]||null,
-        recurring:nextRecurring
-      };
-      const safe=cockpit.safe_to_spend||{},forecast=cockpit.forecast||{},nextIncome=cockpit.next_income,todayIso=new Date().toISOString().slice(0,10),taxEvents=[{due_date:'2026-09-25',amount_cents:-11300,label:'Régularisation fiscale'},{due_date:'2026-10-26',amount_cents:-11300,label:'Régularisation fiscale'},{due_date:'2026-11-26',amount_cents:-11300,label:'Régularisation fiscale'},{due_date:'2026-12-28',amount_cents:-11600,label:'Régularisation fiscale'}].filter(event=>event.due_date>=todayIso).map(event=>({...event,kind:'tax_regularization',certainty:'confirmed',source:'tax_schedule'})),nextOutflow=[...(cockpit.next_outflow?[cockpit.next_outflow]:[]),...taxEvents].sort((a,b)=>String(a.due_date).localeCompare(String(b.due_date)))[0];
-      const openActions=(plan.actions||[]).filter(action=>action.status==='open'),decisions=inbox.items||[],primaryAction=openActions[0],primaryDecision=decisions[0];
-      root.innerHTML=page('Aujourd’hui',todayLabel(),'Ta situation utile, avant toute décision.')+`<section class="card hero"><div class="hero-top"><span class="status-pill" data-status="${esc(safe.status)}">${safeLabel(safe.status)}</span><span class="confidence-pill">${Math.round((cockpit.confidence?.score||0)*100)} % de confiance</span></div><p class="hero-label">Disponible aujourd’hui</p><div class="hero-amount">${euro(safe.today_cents)}</div><p class="hero-copy">Tu peux dépenser ce montant aujourd’hui sans entamer les échéances, objectifs et réserves déjà protégés.</p><div class="hero-facts"><div class="hero-fact"><span>Sur 7 jours</span><strong>${euro(safe.week_cents)}</strong><small>rythme conseillé</small></div><div class="hero-fact"><span>Jusqu’au revenu</span><strong>${euro(safe.until_income_cents)}</strong><small>${explanation.days_to_horizon||'—'} jour(s)</small></div><div class="hero-fact"><span>Solde réel</span><strong>${euro(cockpit.opening_balance_cents)}</strong><small>avant engagements</small></div></div></section><section class="home-summary"><article class="card decision-card"><div class="section-head"><div><p class="eyebrow">Prochaine échéance</p><h2>${nextOutflow?esc(nextOutflow.label):'Aucune sortie proche'}</h2></div><span class="decision-icon">${icon('calendar')}</span></div>${nextOutflow?`<div class="decision-row"><div><strong>${dateLabel(nextOutflow.due_date)}</strong>${nextOutflow.balance_after_cents!=null?`<small>Solde projeté ensuite : ${euro(nextOutflow.balance_after_cents)}</small>`:''}</div><div class="money">${euro(nextOutflow.amount_cents)}</div></div>`:'<p class="subtle">Aucune échéance n’est identifiée sur l’horizon actuel.</p>'}${nextIncome?`<p class="subtle">Prochain revenu structurant le ${dateLabel(nextIncome.date||nextIncome.due_date)}.</p>`:''}</article><article class="card"><div class="section-head"><div><p class="eyebrow">Santé financière</p><h2>${healthLabel(health.status)}</h2></div><div class="quality-ring">${health.score??'—'}</div></div><p class="subtle">Point bas prévu : <strong>${euro(forecast.low_point?.balance_cents)}</strong><br>Réserve protégée : <strong>${euro(explanation.safety_reserve_cents)}</strong></p></article></section><section class="card"><div class="section-head"><div><p class="eyebrow">Décision</p><h2>Priorité maintenant</h2></div><button class="section-action" data-open-settings>Centre de pilotage</button></div>${primaryAction?`<div class="decision-row"><span class="decision-icon">${icon(primaryAction.priority==='critical'?'alert':'arrow')}</span><div><strong>${esc(primaryAction.title)}</strong><small>${esc(primaryAction.detail)}</small></div>${primaryAction.amount_cents!=null?`<div class="money">${euro(primaryAction.amount_cents)}</div>`:''}</div>`:'<div class="empty-state">Aucune action financière prioritaire.</div>'}${primaryDecision?`<div class="decision-row"><span class="decision-icon">${icon('spark')}</span><div><strong>${esc(primaryDecision.title)}</strong><small>${esc(primaryDecision.detail)}</small></div>${primaryDecision.amount_cents!=null?`<div class="money">${euro(primaryDecision.amount_cents)}</div>`:''}</div>`:''}</section><section class="metric-grid"><article class="card metric metric-accent"><span>Actions ouvertes</span><strong>${plan.summary?.open_actions||0}</strong><small>${plan.summary?.critical_actions||0} critique(s)</small></article><article class="card metric"><span>Décisions à prendre</span><strong>${inbox.open_count||0}</strong><small>nécessitent ton choix</small></article><article class="card metric"><span>Marge minimale</span><strong>${euro(plan.summary?.minimum_safe_margin_cents)}</strong><small>projection à 3 mois</small></article><article class="card metric"><span>Objectifs réservés</span><strong>${euro(explanation.goal_allocations_cents)}</strong><small>déjà protégés</small></article></section>`;
-      const verifiedForecast=dashboard.forecast||{};
-      const nextTransfer=(cockpit.recurring||[]).find(item=>String(item.label||'').toUpperCase().includes('COMPTE COMMUN'));
-      root.innerHTML+=`<section class="card forecast-summary"><div class="section-head"><div><p class="eyebrow">Prévision vérifiée</p><h2>Réel et projection séparés</h2></div><span class="confidence-pill">API v6 · ${esc(certified.as_of||dashboard.as_of||'')}</span></div><div class="decision-row"><div><strong>Solde réel</strong><small>Confirmé au ${dateLabel(dashboard.accounts?.[0]?.balance_as_of||certified.as_of)}</small></div><div class="money">${euro(components.current_balance_cents??dashboard.accounts?.[0]?.current_balance_cents)}</div></div><div class="decision-row"><div><strong>Safe to spend maintenant</strong><small>Après échéances, récurrences et réserve de sécurité</small></div><div class="money ${certifiedSafe.calculated_cents>0?'positive':'negative'}">${euro(certifiedSafe.calculated_cents??0)}</div></div>${verifiedIncome?`<div class="decision-row"><div><strong>Salaire attendu</strong><small>${dateLabel(verifiedIncome.date)} · Projection historique</small></div><div class="money positive">+${euro(verifiedIncome.amount_cents)}</div></div>`:''}${nextTransfer?`<div class="decision-row"><div><strong>Compte commun</strong><small>Virement récurrent confirmé · le ${nextTransfer.day_of_month||nextTransfer.usual_day||'1'} de chaque mois</small></div><div class="money negative">${euro(nextTransfer.amount_cents)}</div></div>`:''}</section>`;
-      root.innerHTML+=forecastAccuracyCard(forecastAccuracy);
+      const [dashboard,safeToSpend,trajectory,recurring]=await Promise.all([
+        api('/api/dashboard'),
+        api('/api/v6/safe-to-spend'),
+        api('/api/v6/trajectory'),
+        api('/api/recurring'),
+        api(`/api/recurring/status?month=${state.month}`).catch(()=>({summary:{},items:[]}))
+      ]);
+      const components=safeToSpend?.components||{},safe=safeToSpend?.safe_to_spend||{},realistic=trajectory?.scenarios?.realistic||{};
+      const events=(realistic.timeline||[]).flatMap(day=>(day.events||[]).map(event=>({...event,date:event.date||day.date})));
+      const upcoming=events.filter(event=>Number(event.amount_cents)<0).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))).slice(0,4);
+      const activeRecurring=(recurring||[]).filter(item=>Number(item.is_active)!==0&&Number(item.amount_cents)<0);
+      const recurringMonthly=activeRecurring.reduce((sum,item)=>sum+monthlyEquivalent(item),0);
+      const opening=Number(components.current_balance_cents??dashboard.accounts?.[0]?.current_balance_cents??0);
+      const planned=Math.abs(Number(components.planned_outflows_cents||0));
+      const recurringReserve=Math.abs(Number(components.recurring_outflows_cents??components.recurring_reserve_cents??0));
+      const goals=Math.abs(Number(components.goal_reservations_cents||0));
+      const reserve=Math.abs(Number(components.safety_reserve_cents||0));
+      const available=Number(safe.calculated_cents??safe.today_cents??0);
+      const nextIncome=dashboard?.forecast?.next_income;
+      root.innerHTML=page('Aujourd’hui',todayLabel(),'Ce que tu peux réellement dépenser, et pourquoi.')+`
+        <section class="card hero decision-hero-v7">
+          <p class="hero-label">Disponible à dépenser</p>
+          <div class="hero-amount">${euro(available)}</div>
+          <p class="hero-copy">Après les échéances prévues, les dépenses régulières, les objectifs et le coussin de sécurité.</p>
+          <button class="btn hero-simulate" id="simulatePurchase">Simuler une dépense</button>
+          <div class="hero-facts">
+            <div class="hero-fact"><span>Solde réel</span><strong>${euro(opening)}</strong><small>${dateLabel(dashboard.accounts?.[0]?.balance_as_of||safeToSpend?.as_of)}</small></div>
+            <div class="hero-fact"><span>Réguliers / mois</span><strong>${euro(recurringMonthly)}</strong><small>${activeRecurring.length} actif(s)</small></div>
+            <div class="hero-fact"><span>Prochain revenu</span><strong>${nextIncome?euro(nextIncome.amount_cents):'—'}</strong><small>${nextIncome?dateLabel(nextIncome.date):'Non identifié'}</small></div>
+          </div>
+        </section>
+        <section class="card explain-card">
+          <div class="section-head"><div><p class="eyebrow">Comprendre le calcul</p><h2>D'où vient ce montant</h2></div></div>
+          <div class="formula">
+            <div class="formula-row"><span>Solde réel</span><strong>${euro(opening)}</strong></div>
+            <div class="formula-row"><span>- Échéances prévues</span><strong>${euro(-planned)}</strong></div>
+            <div class="formula-row"><span>- Dépenses régulières réservées</span><strong>${euro(-recurringReserve)}</strong></div>
+            <div class="formula-row"><span>- Objectifs réservés</span><strong>${euro(-goals)}</strong></div>
+            <div class="formula-row"><span>- Coussin de sécurité</span><strong>${euro(-reserve)}</strong></div>
+            <div class="formula-row formula-result"><span>= Disponible à dépenser</span><strong>${euro(available)}</strong></div>
+          </div>
+        </section>
+        <section class="card">
+          <div class="section-head"><div><p class="eyebrow">À venir</p><h2>Prochaines sorties</h2></div><button class="section-action" data-go="recurring">Voir les réguliers</button></div>
+          <div class="stack">${upcoming.map(event=>`<div class="decision-row compact-decision"><div><strong>${esc(event.label||'Échéance')}</strong><small>${dateLabel(event.date)} · ${esc(event.source||event.certainty||'Prévision')}</small></div><div class="money negative">${euro(event.amount_cents)}</div></div>`).join('')||'<div class="empty-state">Aucune sortie identifiée sur l’horizon actuel.</div>'}</div>
+        </section>
+        <section class="home-actions-v7">
+          <button class="card action-card-v7" data-go="month"><span>Ce mois-ci</span><strong>Comprendre mes dépenses</strong><small>Budget, fin de mois et catégories</small></button>
+          <button class="card action-card-v7" data-go="movements"><span>Mouvements</span><strong>Voir mes transactions</strong><small>Rechercher et corriger</small></button>
+          <button class="card action-card-v7" data-go="wealth"><span>Patrimoine</span><strong>Suivre mes objectifs</strong><small>Épargne, actifs et dettes</small></button>
+        </section>`;
       bindNavigation(root);
+      q('#simulatePurchase')?.addEventListener('click',openSimulation);
     }catch(error){renderError(root,'Accueil',error,'home');}
   }
 
   async function renderMonth(){
-    const root=q('[data-screen="month"]');root.innerHTML=page('Projection','Mois','Comprendre le mois, puis ajuster le rythme.')+skeleton();
+    const root=q('[data-screen="month"]');root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+skeleton();
     try{
-      const [monthData,adaptive,closeout,dashboard]=await Promise.all([api(`/api/v2.1/months/${state.month}`),api(`/api/v3.5/adaptive-budget?month=${state.month}`),api(`/api/v3.5/closeout?month=${state.month}`),api('/api/dashboard')]);const current=monthData.current||{},previous=monthData.previous||{},lines=adaptive.lines||[],net=Number(current.income_cents||0)-Number(current.spent_cents||0),previousNet=Number(previous.income_cents||0)-Number(previous.spent_cents||0),netDelta=net-previousNet,monthClose=Number(current.projected_close_cents),monthOpening=Number(dashboard?.accounts?.reduce((sum,item)=>sum+Number(item.current_balance_cents||0),0)||0),plannedAdjustment=monthClose===monthClose?monthClose-monthOpening-net:0;
-      root.innerHTML=page('Projection','Mois','Comprendre le mois, puis ajuster le rythme.')+`<section class="card month-toolbar"><button class="icon-btn" id="prevMonth" aria-label="Mois précédent">‹</button><div class="month-title"><strong>${monthLabel(state.month)}</strong><small>${state.month}</small></div><button class="icon-btn" id="nextMonth" aria-label="Mois suivant">›</button></section><section class="card month-balance"><div><p class="eyebrow">Solde estimé en fin de mois</p><strong class="${monthClose>=0?'positive':'danger'}">${monthClose===monthClose?euro(monthClose):'Indisponible'}</strong><small class="subtle">Ce qui devrait rester sur le compte à la fin du mois</small></div><div class="trend"><small>Flux du mois</small><b class="${netDelta>=0?'positive':'danger'}">${netDelta>=0?'+':''}${euro(netDelta)}</b></div></section><section class="metric-grid"><article class="card metric"><span>Revenus</span><strong>${euro(current.income_cents)}</strong><small>encaissés sur le mois</small></article><article class="card metric"><span>Dépenses</span><strong>${euro(current.spent_cents)}</strong><small>hors transferts internes</small></article><article class="card metric metric-accent"><span>Reste pilotable</span><strong>${euro(adaptive.adaptive_pool_cents)}</strong><small>${adaptive.days_left||0} jour(s) restant(s)</small></article><article class="card metric ${Number(closeout.variance_cents)<0?'metric-warning':''}"><span>Écart au budget</span><strong>${euro(closeout.variance_cents)}</strong><small>${closeout.savings_rate_pct??'—'} % d’épargne</small></article></section><section class="card explain-card"><div class="section-head"><div><p class="eyebrow">Lecture simple</p><h2>Comment le mois est calculé</h2></div></div><p class="subtle">Le solde de fin de mois part du solde réel du compte, puis ajoute les revenus attendus et retire les dépenses et engagements prévus.</p><div class="formula"><div class="formula-row"><span>Solde réel au début de la projection</span><strong>${monthOpening?euro(monthOpening):'—'}</strong></div><div class="formula-row"><span>+ Flux net enregistré</span><strong>${euro(net)}</strong></div><div class="formula-row"><span>+/- Prévisions restantes</span><strong>${plannedAdjustment?euro(plannedAdjustment):euro(0)}</strong></div><div class="formula-row formula-result"><span>= Solde estimé en fin de mois</span><strong>${monthClose===monthClose?euro(monthClose):'—'}</strong></div></div><p class="subtle">Chaque ligne ci-dessous compare ce qui a déjà été dépensé avec l’enveloppe prévue. Un montant positif signifie qu’il reste du budget ; un montant négatif signale un dépassement.</p></section><section class="card"><div class="section-head"><div><p class="eyebrow">Budget adaptatif</p><h2>Reste conseillé par catégorie</h2></div></div><div class="budget-list">${lines.map(item=>{const spent=Number(item.spent_cents)||0,planned=Math.max(0,Number(item.planned_cents)||0),ratio=planned?Math.min(100,Math.round(spent/planned*100)):0;return `<article class="budget-item"><div class="budget-item-head"><div><strong>${esc(item.category)}</strong><small>${lineStatus(item.status)} · ${euro(spent)} dépensés sur ${euro(planned)}</small></div><div class="money">${euro(item.recommended_remaining_cents)}</div></div><div class="budget-track ${ratio>90?'warning':''}"><i style="width:${ratio}%"></i></div></article>`;}).join('')||'<div class="empty-state">Aucune enveloppe n’est encore définie pour ce mois.</div>'}</div></section><section class="card"><p class="eyebrow">Méthode</p><p class="subtle">${esc(adaptive.method)}</p></section>`;q('#prevMonth').addEventListener('click',()=>shiftMonth(-1));q('#nextMonth').addEventListener('click',()=>shiftMonth(1));
+      const [monthData,adaptive,closeout,dashboard,recurring,recurringStatus]=await Promise.all([
+        api(`/api/v2.1/months/${state.month}`),
+        api(`/api/v3.5/adaptive-budget?month=${state.month}`),
+        api(`/api/v3.5/closeout?month=${state.month}`),
+        api('/api/dashboard'),
+        api('/api/recurring'),
+        api(`/api/recurring/status?month=${state.month}`).catch(()=>({summary:{},items:[]}))
+      ]);
+      const current=monthData.current||{},lines=adaptive.lines||[];
+      const monthClose=Number(current.projected_close_cents);
+      const monthOpening=Number(dashboard?.accounts?.reduce((sum,item)=>sum+Number(item.current_balance_cents||0),0)||0);
+      const income=Number(current.income_cents||0),spent=Number(current.spent_cents||0),net=income-spent;
+      const plannedAdjustment=Number.isFinite(monthClose)?monthClose-monthOpening-net:0;
+      const activeRecurring=(recurring||[]).filter(item=>Number(item.is_active)!==0&&Number(item.amount_cents)<0);
+      const recurringMonthly=activeRecurring.reduce((sum,item)=>sum+monthlyEquivalent(item),0);
+      const topCategories=[...lines].sort((a,b)=>Number(b.spent_cents||0)-Number(a.spent_cents||0)).slice(0,6);
+      root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+`
+        <section class="card month-toolbar"><button class="icon-btn" id="prevMonth" aria-label="Mois précédent">‹</button><div class="month-title"><strong>${monthLabel(state.month)}</strong><small>${state.month}</small></div><button class="icon-btn" id="nextMonth" aria-label="Mois suivant">›</button></section>
+        <section class="card month-balance month-balance-v7"><div><p class="eyebrow">Ce qui devrait rester</p><strong class="${monthClose>=0?'positive':'danger'}">${Number.isFinite(monthClose)?euro(monthClose):'Indisponible'}</strong><small class="subtle">Solde estimé à la fin du mois</small></div></section>
+        <section class="month-flow-v7">
+          <article class="card metric"><span>Revenus</span><strong>${euro(income)}</strong><small>sur le mois</small></article>
+          <article class="card metric"><span>Dépenses</span><strong>${euro(spent)}</strong><small>hors transferts internes</small></article>
+          <article class="card metric"><span>Réguliers</span><strong>${euro(recurringMonthly)}</strong><small>équivalent mensuel</small></article>
+          <article class="card metric metric-accent"><span>Reste pilotable</span><strong>${euro(adaptive.adaptive_pool_cents)}</strong><small>${adaptive.days_left||0} jour(s)</small></article>
+        </section>
+        <section class="card explain-card">
+          <div class="section-head"><div><p class="eyebrow">Calcul du restant</p><h2>Comment arrive-t-on à la fin de mois</h2></div></div>
+          <div class="formula">
+            <div class="formula-row"><span>Solde réel de départ</span><strong>${euro(monthOpening)}</strong></div>
+            <div class="formula-row"><span>+ Revenus - dépenses constatées</span><strong>${euro(net)}</strong></div>
+            <div class="formula-row"><span>+/- Échéances et prévisions restantes</span><strong>${euro(plannedAdjustment)}</strong></div>
+            <div class="formula-row formula-result"><span>= Solde estimé fin de mois</span><strong>${Number.isFinite(monthClose)?euro(monthClose):'—'}</strong></div>
+          </div>
+        </section>
+        <section class="card recurring-entry recurring-entry-v7">
+          <div><p class="eyebrow">Dépenses régulières</p><h2>${euro(recurringMonthly)} / mois</h2><p class="subtle">${activeRecurring.length} charge(s) active(s). ${recurringStatus?.summary?.paid_count||0} payée(s) · ${recurringStatus?.summary?.remaining_count||0} restante(s) ce mois.</p></div>
+          <button class="btn secondary" data-go="recurring">Gérer</button>
+        </section>
+        <section class="card">
+          <div class="section-head"><div><p class="eyebrow">Où part l'argent</p><h2>Principales catégories</h2></div></div>
+          <div class="budget-list">${topCategories.map(item=>{const spentValue=Number(item.spent_cents)||0,planned=Math.max(0,Number(item.planned_cents)||0),ratio=planned?Math.min(100,Math.round(spentValue/planned*100)):0;return `<article class="budget-item"><div class="budget-item-head"><div><strong>${esc(item.category)}</strong><small>${euro(spentValue)} dépensés${planned?' sur '+euro(planned):''}</small></div><div class="money">${euro(item.recommended_remaining_cents)}</div></div><div class="budget-track ${ratio>90?'warning':''}"><i style="width:${ratio}%"></i></div></article>`;}).join('')||'<div class="empty-state">Aucune dépense catégorisée pour ce mois.</div>'}</div>
+        </section>
+        <section class="card month-status-v7"><p class="eyebrow">Écart au budget</p><strong class="${Number(closeout.variance_cents)<0?'danger':'positive'}">${euro(closeout.variance_cents)}</strong><p class="subtle">Taux d'épargne : ${closeout.savings_rate_pct??'—'} %</p></section>`;
+      q('#prevMonth').addEventListener('click',()=>shiftMonth(-1));
+      q('#nextMonth').addEventListener('click',()=>shiftMonth(1));
+      bindNavigation(root);
     }catch(error){renderError(root,'Mois',error,'month');}
   }
   function shiftMonth(delta){const d=new Date(`${state.month}-15T12:00:00`);d.setMonth(d.getMonth()+delta);state.month=d.toISOString().slice(0,7);renderMonth();}
@@ -186,42 +272,223 @@
   }
 
   async function renderMovements(){
-    const root=q('[data-screen="movements"]');root.innerHTML=page('Contrôle','Mouvements','Comprendre où part ton argent et corriger les opérations.')+skeleton();
+    const root=q('[data-screen="movements"]');root.innerHTML=page('Historique','Mouvements','Toutes tes opérations, sans bruit technique.')+skeleton();
     try{
-      const params=new URLSearchParams({month:state.month,limit:'150'});if(state.query)params.set('q',state.query);if(state.filter!=='all')params.set('quality',state.filter);
-      const [rowsResult,summaryResult,intelligenceResult,groupResult,categoriesResult]=await Promise.allSettled([api(`/api/v3.1/movements?${params}`),api(`/api/v3.1/movement-summary?month=${state.month}`),api('/api/v3.7/data-intelligence'),api('/api/imports/inbox/groups?limit=12'),api('/api/categories')]);const rows=rowsResult.status==='fulfilled'?rowsResult.value:[];const summary=summaryResult.status==='fulfilled'?summaryResult.value:{};const intelligence=intelligenceResult.status==='fulfilled'?intelligenceResult.value:{};const groupData=groupResult.status==='fulfilled'?groupResult.value:{total_pending:0,groups:[],error:'Impossible de charger les groupes de revue.'};const categories=categoriesResult.status==='fulfilled'?categoriesResult.value:[];
-      const expenses=rows.filter(item=>Number(item.amount_cents)<0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
-      const incomes=rows.filter(item=>Number(item.amount_cents)>0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
-      const expenseTotal=expenses.reduce((sum,item)=>sum+Math.abs(Number(item.amount_cents)||0),0),incomeTotal=incomes.reduce((sum,item)=>sum+Number(item.amount_cents||0),0);
-      const categoryTotals={};expenses.forEach(item=>{const key=item.category||'Non catégorisé';categoryTotals[key]=(categoryTotals[key]||0)+Math.abs(Number(item.amount_cents)||0);});
-      const categoryMarkup=`<section class="card movement-categories"><div class="section-head"><div><p class="eyebrow">Où part l'argent</p><h2>Par catégorie</h2></div><span class="subtle">${Object.keys(categoryTotals).length} catégorie(s)</span></div><div class="category-list">${Object.entries(categoryTotals).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([category,total])=>{const pct=expenseTotal?Math.round(total/expenseTotal*100):0;return `<div class="category-row"><div class="category-name"><strong>${esc(category)}</strong><small>${pct} % des dépenses</small></div><div class="category-value"><strong>${euro(total)}</strong><i><b style="width:${pct}%"></b></i></div></div>`;}).join('')||'<div class="empty-state">Aucune dépense catégorisée pour ce mois.</div>'}</div></section>`;
-      const guide=`<section class="card explain-card movement-guide"><p class="eyebrow">Comment lire cette page</p><p class="subtle">Les dépenses diminuent ton solde, les revenus l'augmentent. Les transferts entre tes comptes sont exclus des totaux. Ouvre une opération pour modifier sa catégorie ou son libellé.</p></section>`;
-      const groupMarkup=`<section class="card movement-group-review"><div class="section-head"><div><p class="eyebrow">Revue groupée</p><h2>À valider par groupe</h2></div><span class="subtle">${groupData.error?'Indisponible':`${groupData.total_pending||0} en attente`}</span></div><p class="subtle">Sélectionne plusieurs groupes pour les valider ensemble. Un aperçu de l'impact sera affiché avant confirmation.</p><div class="group-review-batch"><select id="batchGroupCategory" aria-label="Catégorie commune"><option value="">Catégorie commune</option>${(categories||[]).map(category=>`<option value="${esc(category.name)}">${esc(category.name)}</option>`).join('')}</select><select id="batchGroupType" aria-label="Type commun"><option value="expense">Dépense</option><option value="income">Revenu</option><option value="transfer">Transfert</option><option value="refund">Remboursement</option></select><button class="btn primary" id="batchGroupReview">Aperçu de la sélection</button></div><div class="group-review-list">${(groupData.groups||[]).slice(0,20).map(group=>{return `<label class="group-review-row"><input type="checkbox" data-group-select value="${esc(group.normalized_label)}"><span><strong>${esc(group.normalized_label)}</strong><small>${group.occurrence_count} mouvement(s) · ${euro(group.net_amount_cents||0)}</small></span><button type="button" class="btn secondary group-review-apply" data-group-label="${esc(group.normalized_label)}">Aperçu</button></label>`;}).join('')||'<div class="empty-state">${groupData.error?esc(groupData.error):\'Aucun groupe à revoir.\'}</div>'}</div></section>`;
-      root.innerHTML=page('Contrôle','Mouvements','Comprendre où part ton argent et corriger les opérations.')+`<section class="card movement-overview"><div class="section-head"><div><p class="eyebrow">${monthLabel(state.month)}</p><h2>Vue du mois</h2></div><span class="confidence-pill">${rows.length} opération(s)</span></div><div class="movement-totals"><div><span>Dépenses</span><strong class="negative">-${euro(expenseTotal)}</strong></div><div><span>Revenus</span><strong class="positive">+${euro(incomeTotal)}</strong></div><div><span>À classer</span><strong>${summary.uncategorized||0}</strong></div></div></section>${guide}${groupMarkup}<section class="card movement-month-picker"><div><p class="eyebrow">Période</p><strong>Afficher les mouvements de</strong></div><div class="month-picker-controls"><button class="icon-btn" id="movementPrevMonth" aria-label="Mois précédent">‹</button><input id="movementMonth" type="month" value="${state.month}" aria-label="Mois des mouvements"><button class="icon-btn" id="movementNextMonth" aria-label="Mois suivant">›</button></div></section><section class="toolbar sticky-tools"><label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input id="movementSearch" autocomplete="off" placeholder="Rechercher un mouvement" value="${esc(state.query)}"></label><div class="chips">${[['all','Tous'],['uncategorized','À catégoriser'],['unmatched_transfer','Transferts'],['exceptional','Exceptionnels'],['excluded','Hors analyses']].map(([key,label])=>`<button class="chip ${state.filter===key?'active':''}" data-filter="${key}">${label}</button>`).join('')}</div></section>${categoryMarkup}<section class="card movement-operations"><div class="section-head"><div><p class="eyebrow">Détail</p><h2>Opérations</h2></div><span class="subtle">${rows.length} résultat(s)</span></div><div class="movement-list">${rows.map(item=>{const positive=Number(item.amount_cents)>0;return `<button class="row movement-row list-button" data-edit="${item.id}"><span class="movement-icon ${positive?'income':'expense'}">${icon(positive?'income':'expense')}</span><div><strong>${esc(item.user_label||item.label)}</strong><small>${dateLabel(item.booking_date)} · ${esc(item.category||'Non catégorisé')}${item.account_name?` · ${esc(item.account_name)}`:''}</small></div><div class="money ${positive?'positive':'negative'}">${positive?'+':''}${euro(item.amount_cents)}</div></button>`;}).join('')||'<div class="empty-state">Aucun mouvement ne correspond à ces filtres.</div>'}</div></section><section class="card movement-suggestions"><details><summary><span><p class="eyebrow">Automatisation</p><strong>Suggestions de marchands</strong></span><span class="chip">${(intelligence.merchant_suggestions||[]).length}</span></summary><div class="suggestion-list">${(intelligence.merchant_suggestions||[]).slice(0,5).map(item=>`<div class="row"><div><strong>${esc(item.canonical_name)}</strong><small>${item.occurrences} occurrence(s) · ${Math.round(item.confidence*100)} % de confiance</small></div>${item.confirmed?'<span class="chip active">Confirmé</span>':`<button class="chip merchant-confirm" data-merchant-key="${esc(item.normalized_key)}" data-merchant-name="${esc(item.canonical_name)}">Confirmer</button>`}</div>`).join('')||'<div class="empty-state">Aucune suggestion actuellement.</div>'}</div></details></section>`;
+      const params=new URLSearchParams({month:state.month,limit:'250'});
+      if(state.query)params.set('q',state.query);
+      if(state.filter==='uncategorized')params.set('quality','uncategorized');
+      const [rows,summary]=await Promise.all([
+        api(`/api/v3.1/movements?${params}`),
+        api(`/api/v3.1/movement-summary?month=${state.month}`)
+      ]);
+      let visible=rows||[];
+      if(state.filter==='expense')visible=visible.filter(item=>Number(item.amount_cents)<0&&!item.is_internal_transfer);
+      if(state.filter==='income')visible=visible.filter(item=>Number(item.amount_cents)>0&&!item.is_internal_transfer);
+      const expenses=(rows||[]).filter(item=>Number(item.amount_cents)<0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
+      const incomes=(rows||[]).filter(item=>Number(item.amount_cents)>0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
+      const expenseTotal=expenses.reduce((sum,item)=>sum+Math.abs(Number(item.amount_cents)||0),0);
+      const incomeTotal=incomes.reduce((sum,item)=>sum+Number(item.amount_cents||0),0);
+      const groups=[];
+      visible.forEach(item=>{
+        const day=String(item.booking_date||'');
+        let group=groups.find(entry=>entry.date===day);
+        if(!group){group={date:day,items:[]};groups.push(group);}
+        group.items.push(item);
+      });
+      const listMarkup=groups.map(group=>`<section class="movement-day">
+        <div class="movement-day-head"><strong>${dateLabel(group.date)}</strong><span>${group.items.length} opération(s)</span></div>
+        <div class="movement-bank-list">${group.items.map(item=>{
+          const positive=Number(item.amount_cents)>0;
+          const transfer=Boolean(item.is_internal_transfer);
+          const label=item.user_label||item.label;
+          return `<button class="movement-bank-row" data-edit="${item.id}">
+            <div class="movement-bank-copy">
+              <strong>${esc(label)}</strong>
+              <small>${esc(item.category||'Non catégorisé')}${transfer?' · Transfert interne':''}</small>
+            </div>
+            <div class="money ${positive?'positive':'negative'}">${positive?'+':''}${euro(item.amount_cents)}</div>
+          </button>`;
+        }).join('')}</div>
+      </section>`).join('');
+      root.innerHTML=page('Historique','Mouvements','Toutes tes opérations, sans bruit technique.')+`
+        <section class="card movement-overview movement-overview-v7">
+          <div class="section-head"><div><p class="eyebrow">${monthLabel(state.month)}</p><h2>Résumé du mois</h2></div><span class="confidence-pill">${rows.length} opération(s)</span></div>
+          <div class="movement-totals">
+            <div><span>Dépenses</span><strong class="negative">-${euro(expenseTotal)}</strong></div>
+            <div><span>Revenus</span><strong class="positive">+${euro(incomeTotal)}</strong></div>
+            <div><span>À classer</span><strong>${summary.uncategorized||0}</strong></div>
+          </div>
+        </section>
+        <section class="card movement-controls-v7">
+          <div class="month-picker-controls"><button class="icon-btn" id="movementPrevMonth" aria-label="Mois précédent">‹</button><input id="movementMonth" type="month" value="${state.month}" aria-label="Mois des mouvements"><button class="icon-btn" id="movementNextMonth" aria-label="Mois suivant">›</button></div>
+          <label class="search-field search-field-large"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input id="movementSearch" autocomplete="off" placeholder="Rechercher" value="${esc(state.query)}"></label>
+          <div class="chips movement-filter-v7">${[['all','Tous'],['expense','Dépenses'],['income','Revenus'],['uncategorized','À classer']].map(([key,label])=>`<button class="chip ${state.filter===key?'active':''}" data-filter="${key}">${label}</button>`).join('')}</div>
+        </section>
+        <section class="card movement-operations-v7">
+          <div class="section-head"><div><p class="eyebrow">Opérations</p><h2>${visible.length} mouvement(s)</h2></div></div>
+          ${listMarkup||'<div class="empty-state">Aucun mouvement pour cette sélection.</div>'}
+        </section>`;
       q('#movementSearch').addEventListener('input',event=>{state.query=event.target.value;clearTimeout(window.__flowSearch);window.__flowSearch=setTimeout(renderMovements,260);});
       q('#movementMonth').addEventListener('change',event=>{if(event.target.value){state.month=event.target.value;renderMovements();}});
-      q('#movementPrevMonth').addEventListener('click',()=>{shiftMovementMonth(-1);});
-      q('#movementNextMonth').addEventListener('click',()=>{shiftMovementMonth(1);});
+      q('#movementPrevMonth').addEventListener('click',()=>shiftMovementMonth(-1));
+      q('#movementNextMonth').addEventListener('click',()=>shiftMovementMonth(1));
       root.querySelectorAll('[data-filter]').forEach(button=>button.addEventListener('click',()=>{state.filter=button.dataset.filter;renderMovements();}));
       root.querySelectorAll('[data-edit]').forEach(button=>button.addEventListener('click',()=>openMovement(Number(button.dataset.edit))));
-      root.querySelectorAll('.group-review-apply').forEach(button=>button.addEventListener('click',async()=>{const category=q('#batchGroupCategory').value;const transactionType=q('#batchGroupType').value;if(!category){alert('Choisis une catégorie avant de continuer.');return;}button.disabled=true;try{const preview=await api('/api/imports/inbox/group-review',{method:'POST',body:JSON.stringify({normalized_label:button.dataset.groupLabel,category,transaction_type:transactionType,confirm:false})});const p=preview.preview||{};const confirmed=window.confirm(`Aperçu de validation\\n\\n${p.pending_count||0} mouvement(s)\\nDébits : ${p.debit_count||0}\\nCrédits : ${p.credit_count||0}\\nImpact net : ${euro(p.net_amount_cents||0)}\\n\\nConfirmer uniquement ce groupe ?`);if(confirmed){await api('/api/imports/inbox/group-review',{method:'POST',body:JSON.stringify({normalized_label:button.dataset.groupLabel,category,transaction_type:transactionType,confirm:true})});renderMovements();}else{button.disabled=false;}}catch(error){button.disabled=false;alert(error.message);}}));
-
-      q('#batchGroupReview')?.addEventListener('click',async()=>{const labels=[...root.querySelectorAll('[data-group-select]:checked')].map(input=>input.value);const category=q('#batchGroupCategory').value;const transactionType=q('#batchGroupType').value;if(!labels.length){alert('Sélectionne au moins un groupe.');return;}if(!category){alert('Choisis une catégorie commune.');return;}const button=q('#batchGroupReview');button.disabled=true;try{const preview=await api('/api/imports/inbox/group-review/batch',{method:'POST',body:JSON.stringify({normalized_labels:labels,category,transaction_type:transactionType,confirm:false})});const p=preview.preview||{};const confirmed=window.confirm(`Aperçu de validation groupée\\n\\n${p.groups?.length||labels.length} groupe(s)\\n${p.pending_count||0} mouvement(s)\\nDébits : ${p.debit_count||0}\\nCrédits : ${p.credit_count||0}\\nImpact net : ${euro(p.net_amount_cents||0)}\\n\\nConfirmer la validation de toute la sélection ?`);if(confirmed){await api('/api/imports/inbox/group-review/batch',{method:'POST',body:JSON.stringify({normalized_labels:labels,category,transaction_type:transactionType,confirm:true})});renderMovements();}else{button.disabled=false;}}catch(error){button.disabled=false;alert(error.message);}});
-      bindGroupReviewModal(root);
-      root.querySelectorAll('.merchant-confirm').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{await api('/api/v3.7/merchant-aliases',{method:'POST',body:JSON.stringify({normalized_key:button.dataset.merchantKey,canonical_name:button.dataset.merchantName})});renderMovements();}catch(error){button.disabled=false;alert(error.message);}}));
     }catch(error){renderError(root,'Mouvements',error,'movements');}
   }
 
   function shiftMovementMonth(delta){const d=new Date(`${state.month}-15T12:00:00`);d.setMonth(d.getMonth()+delta);state.month=d.toISOString().slice(0,7);renderMovements();}
 
-  async function openMovement(id){const dialog=q('#editDialog'),body=q('#editBody');dialog.showModal();body.innerHTML=skeleton();try{const [rows,categories]=await Promise.all([api('/api/v3.1/movements?limit=500'),api('/api/categories')]);const movement=rows.find(item=>item.id===id);if(!movement)throw new Error('Mouvement introuvable');body.innerHTML=`<form id="editForm" class="stack"><p class="eyebrow">${dateLabel(movement.booking_date)} · ${esc(movement.account_name||'Compte')}</p><h3>${esc(movement.label)}</h3><label class="form-label">Libellé personnel<input class="field" name="user_label" value="${esc(movement.user_label||'')}" placeholder="Nom lisible"></label><label class="form-label">Catégorie<select class="field" name="category"><option value="">Non catégorisé</option>${categories.map(category=>`<option ${category.name===movement.category?'selected':''}>${esc(category.name)}</option>`).join('')}</select></label><label class="toggle-row"><span><strong>Transfert interne</strong><small>Exclu des revenus et dépenses</small></span><input type="checkbox" name="is_internal_transfer" ${movement.is_internal_transfer?'checked':''}></label><label class="toggle-row"><span><strong>Dépense exceptionnelle</strong><small>Isolée des tendances courantes</small></span><input type="checkbox" name="is_exceptional" ${movement.is_exceptional?'checked':''}></label><label class="toggle-row"><span><strong>Exclure des analyses</strong><small>Reste visible dans l’historique</small></span><input type="checkbox" name="exclude_from_analytics" ${movement.exclude_from_analytics?'checked':''}></label><button class="btn primary">Enregistrer les corrections</button></form>`;q('#editForm').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget.elements;await api(`/api/v3.1/movements/${id}`,{method:'PATCH',body:JSON.stringify({user_label:form.user_label.value||null,category:form.category.value||null,is_internal_transfer:form.is_internal_transfer.checked,is_exceptional:form.is_exceptional.checked,exclude_from_analytics:form.exclude_from_analytics.checked})});dialog.close();renderMovements();});}catch(error){body.innerHTML=`<div class="notice">Modification indisponible : ${esc(error.message)}</div>`;}}
+  async function openMovement(id){
+    const dialog=q('#editDialog'),body=q('#editBody');dialog.showModal();body.innerHTML=skeleton();
+    try{
+      const [rows,categories,accounts]=await Promise.all([api('/api/v3.1/movements?limit=500'),api('/api/categories'),api('/api/accounts')]);
+      const movement=rows.find(item=>item.id===id);
+      if(!movement)throw new Error('Mouvement introuvable');
+      body.innerHTML=`<form id="editForm" class="stack">
+        <p class="eyebrow">${dateLabel(movement.booking_date)} · ${esc(movement.account_name||'Compte')}</p>
+        <div class="movement-edit-amount ${Number(movement.amount_cents)>=0?'positive':'negative'}">${Number(movement.amount_cents)>=0?'+':''}${euro(movement.amount_cents)}</div>
+        <label class="form-label">Nom affiché<input class="field" name="user_label" value="${esc(movement.user_label||'')}" placeholder="${esc(movement.label)}"></label>
+        <label class="form-label">Catégorie<select class="field" name="category"><option value="">Non catégorisé</option>${categories.map(category=>`<option value="${esc(category.name)}" ${category.name===movement.category?'selected':''}>${esc(category.name)}</option>`).join('')}</select></label>
+        <label class="form-label">Type<select class="field" name="transaction_type">
+          ${[['expense','Dépense'],['income','Revenu'],['refund','Remboursement'],['transfer','Transfert']].map(([value,label])=>`<option value="${value}" ${movement.transaction_type===value?'selected':''}>${label}</option>`).join('')}
+        </select></label>
+        <label class="toggle-row"><span><strong>Transfert interne</strong><small>Ne compte pas comme dépense ou revenu</small></span><input type="checkbox" name="is_internal_transfer" ${movement.is_internal_transfer?'checked':''}></label>
+        <label class="toggle-row"><span><strong>Dépense exceptionnelle</strong><small>Ne doit pas influencer mes habitudes</small></span><input type="checkbox" name="is_exceptional" ${movement.is_exceptional?'checked':''}></label>
+        <label class="toggle-row"><span><strong>Exclure des analyses</strong><small>Garder l'opération visible mais hors statistiques</small></span><input type="checkbox" name="exclude_from_analytics" ${movement.exclude_from_analytics?'checked':''}></label>
+        <button class="btn primary">Enregistrer</button>
+        ${Number(movement.amount_cents)<0?`<button type="button" class="btn secondary" id="makeRecurring">Créer un régulier depuis ce mouvement</button>`:''}
+      </form>`;
+      q('#editForm').addEventListener('submit',async event=>{
+        event.preventDefault();
+        const form=event.currentTarget.elements;
+        await api(`/api/v3.1/movements/${id}`,{method:'PATCH',body:JSON.stringify({
+          user_label:form.user_label.value||null,
+          category:form.category.value||null,
+          transaction_type:form.transaction_type.value,
+          is_internal_transfer:form.is_internal_transfer.checked,
+          is_exceptional:form.is_exceptional.checked,
+          exclude_from_analytics:form.exclude_from_analytics.checked
+        })});
+        dialog.close();renderMovements();
+      });
+      q('#makeRecurring')?.addEventListener('click',()=>{
+        dialog.close();
+        const parsedDay=Math.max(1,Math.min(31,Number(String(movement.booking_date).slice(8,10))||1));
+        openRecurringEditor({
+          account_id:movement.account_id,
+          label:movement.user_label||movement.label,
+          amount_cents:movement.amount_cents,
+          day_of_month:parsedDay,
+          category:movement.category,
+          frequency:'monthly'
+        },accounts,categories);
+      });
+    }catch(error){body.innerHTML=`<div class="notice">Modification indisponible : ${esc(error.message)}</div>`;}
+  }
+
 
   async function renderWealth(){const root=q('[data-screen="wealth"]');root.innerHTML=page('Construction','Patrimoine','Voir ce qui est disponible, investi et encore dû.')+skeleton();try{const [wealth,goals,strategy]=await Promise.all([api('/api/v2.2/wealth'),api('/api/v3.3/goals-forecast?months=12'),api('/api/v3.8/strategy?months=3')]);const liquid=Math.max(0,Number(wealth.cash_cents)||0),savings=Math.max(0,Number(wealth.savings_cents)||0),investments=Math.max(0,Number(wealth.investments_cents)||0),allocationTotal=Math.max(1,liquid+savings+investments);root.innerHTML=page('Construction','Patrimoine','Voir ce qui est disponible, investi et encore dû.')+`<section class="card hero"><div class="hero-top"><span class="status-pill">Vue consolidée</span><span class="confidence-pill">au ${dateLabel(wealth.as_of)}</span></div><p class="hero-label">Patrimoine net</p><div class="hero-amount">${euro(wealth.net_worth_cents)}</div><p class="hero-copy">${esc(strategy.headline)} · surplus stratégique ${euro(strategy.strategic_surplus_cents)}</p><div class="wealth-breakdown"><div><span>Actifs</span><strong>${euro(wealth.total_assets_cents)}</strong></div><div><span>Dettes</span><strong>${euro(wealth.total_debt_cents)}</strong></div><div><span>Protégé</span><strong>${euro(strategy.protected_cents)}</strong></div></div></section><section class="card explain-card"><div class="section-head"><div><p class="eyebrow">Lecture simple</p><h2>Comment lire ce patrimoine</h2></div></div><p class="subtle">Le patrimoine net est calculé ainsi : actifs moins dettes. Les liquidités sont l’argent disponible sur les comptes ; l’épargne et les investissements construisent le patrimoine mais ne sont pas automatiquement dépensables.</p><div class="formula"><div class="formula-row"><span>Actifs</span><strong>${euro(wealth.total_assets_cents)}</strong></div><div class="formula-row"><span>- Dettes</span><strong>${euro(wealth.total_debt_cents)}</strong></div><div class="formula-row formula-result"><span>= Patrimoine net</span><strong>${euro(wealth.net_worth_cents)}</strong></div></div><p class="subtle">La somme protégée correspond aux objectifs et réserves déjà affectés. Elle est séparée de l’argent que tu peux dépenser aujourd’hui.</p></section><section class="card"><div class="section-head"><div><p class="eyebrow">Répartition financière</p><h2>Où se trouve ton argent</h2></div></div><div class="allocation-bar" aria-label="Répartition des avoirs"><i style="width:${liquid/allocationTotal*100}%"></i><i style="width:${savings/allocationTotal*100}%"></i><i style="width:${investments/allocationTotal*100}%"></i></div><div class="allocation-legend"><span>Liquidités<b>${euro(liquid)}</b></span><span>Épargne<b>${euro(savings)}</b></span><span>Investissements<b>${euro(investments)}</b></span></div></section><section class="card"><div class="section-head"><div><p class="eyebrow">Stratégie</p><h2>Ordre d’allocation</h2></div></div>${(strategy.buckets||[]).map((bucket,index)=>`<div class="decision-row"><span class="decision-icon">${index+1}</span><div><strong>${esc(bucket.label)}</strong><small>${esc(bucket.reason)}</small></div><div class="money">${euro(bucket.amount_cents)}</div></div>`).join('')||'<div class="empty-state">Aucune allocation recommandée.</div>'}<p class="subtle">${esc(strategy.method)}</p></section><section class="card"><div class="section-head"><div><p class="eyebrow">Objectifs</p><h2>Trajectoire à 12 mois</h2></div></div>${(goals.goals||[]).map(goal=>{const progress=Math.min(100,Math.max(0,Number(goal.projected_progress_pct)||0));return `<article class="goal-card"><div class="goal-head"><div><strong>${esc(goal.name)}</strong><small>${statusLabel(goal.status)} · cible ${goal.target_date?dateLabel(goal.target_date):'sans date'}</small></div><span class="goal-pct">${Math.round(progress)} %</span></div><div class="progress"><i style="width:${progress}%"></i></div><div class="goal-meta"><span>Effort ${goal.required_monthly_cents==null?'—':euro(goal.required_monthly_cents)+'/mois'}</span><span>Écart ${euro(goal.projected_gap_cents)}</span></div></article>`;}).join('')||'<div class="empty-state">Aucun objectif patrimonial n’est défini.</div>'}</section>`;}catch(error){renderError(root,'Patrimoine',error,'wealth');}}
 
   async function setDecision(key,status){await api(`/api/v3.6/decision-inbox/${encodeURIComponent(key)}`,{method:'PATCH',body:JSON.stringify({status})});openSystem();if(state.screen==='home')renderHome();}
   async function runRoutines(){const status=await api('/api/v3.6/routine-status');for(const routine of status.routines||[]){if(!routine.due)continue;if(routine.key==='month_open')await api(`/api/v3.6/open-month?month=${encodeURIComponent(routine.period)}`,{method:'POST'});if(routine.key==='month_close')await api(`/api/v3.6/close-month?month=${encodeURIComponent(routine.period)}`,{method:'POST'});if(routine.key==='weekly_review')await api('/api/v3.6/weekly-review',{method:'POST'});}await api('/api/v3.6/reconcile',{method:'POST'});openSystem();if(state.screen==='home')renderHome();}
-  async function renderPlan(){const root=q('[data-screen="plan"]');root.innerHTML=page('Projection','Planifier','Voir les échéances, les objectifs et tester un événement futur.')+skeleton();try{const [recurring,goals,dashboard,safeToSpend,trajectory]=await Promise.all([api('/api/recurring'),api('/api/goals'),api('/api/dashboard'),api('/api/v6/safe-to-spend'),api('/api/v6/trajectory')]);const recurringRows=(recurring||[]).filter(item=>Number(item.amount_cents)<0);const recurringTotal=recurringRows.reduce((sum,item)=>sum+Math.abs(Number(item.amount_cents)||0),0);const goalRows=(goals||[]).slice(0,5);const currentMonth=new Date().toISOString().slice(0,7);const forecast=dashboard?.forecast||{};const safeComponents=safeToSpend?.components||{};const trajectoryEvents=(trajectory?.scenarios?.realistic?.timeline||[]).flatMap(day=>day.events||[]);const monthEvents=trajectoryEvents.filter(event=>String(event.date||'').slice(0,7)===currentMonth&&Number(event.amount_cents)<0);const incomeRows=(forecast.events||[]).filter(event=>String(event.date||'').slice(0,7)===currentMonth&&Number(event.amount_cents)>0);const taxRows=[{iso:'2026-09-25',label:'25 septembre 2026',tax:11300},{iso:'2026-10-26',label:'26 octobre 2026',tax:11300},{iso:'2026-11-26',label:'26 novembre 2026',tax:11300},{iso:'2026-12-28',label:'28 décembre 2026',tax:11600}];const taxTotal=taxRows.reduce((sum,row)=>sum+row.tax,0);const dueRows=[...monthEvents];const dueMarkup=`<section class="card month-due"><div class="section-head"><div><p class="eyebrow">Échéances du mois</p><h2>Ce qui doit encore sortir</h2></div><span class="confidence-pill">${dueRows.length} échéance(s)</span></div><div class="tax-list">${dueRows.map(row=>`<div class="tax-row"><div><strong>${esc(row.label)}</strong><small>${row.source==='tax_schedule'?'Régularisation fiscale':'Échéance confirmée'}</small></div><div class="money negative">${euro(row.amount_cents)}</div></div>`).join('')||'<div class="empty-state">Aucune échéance restante ce mois.</div>'}</div></section>`;const incomeTotal=incomeRows.reduce((sum,row)=>sum+Number(row.amount_cents)||0,0);const incomeMarkup=`<section class="card month-income"><div class="section-head"><div><p class="eyebrow">Revenus attendus</p><h2>Ce qui doit encore entrer</h2></div><span class="confidence-pill">${incomeRows.length} revenu(s)</span></div><div class="tax-list">${incomeRows.map(row=>`<div class="tax-row"><div><strong>${esc(row.label)}</strong><small>Revenu attendu</small></div><div class="money positive">${euro(row.amount_cents)}</div></div>`).join('')||'<div class="empty-state">Aucun revenu attendu ce mois.</div>'}</div></section>`;const openingCents=Number(safeComponents.current_balance_cents??forecast.opening_balance_cents??0),allocatedCents=Number(safeComponents.goal_reservations_cents||0),reserveCents=Number(safeComponents.safety_reserve_cents||0),dueTotal=dueRows.reduce((sum,row)=>sum+Math.abs(Number(row.amount_cents)||0),0),remainingCents=openingCents+incomeTotal-dueTotal-allocatedCents-reserveCents;const remainingMarkup=`<section class="card explain-card remaining-card"><div class="section-head"><div><p class="eyebrow">Calcul</p><h2>Ce qu'il te reste</h2></div><strong class="money ${remainingCents>=0?'positive':'danger'}">${euro(remainingCents)}</strong></div><p class="subtle">Montant restant après les revenus attendus, les échéances du mois, les objectifs déjà réservés et la réserve de sécurité.</p><div class="formula"><div class="formula-row"><span>Solde réel</span><strong>${euro(openingCents)}</strong></div><div class="formula-row"><span>+ Revenus attendus</span><strong>${euro(incomeTotal)}</strong></div><div class="formula-row"><span>- Échéances restantes</span><strong>${euro(-dueTotal)}</strong></div><div class="formula-row"><span>- Objectifs réservés</span><strong>${euro(-allocatedCents)}</strong></div><div class="formula-row"><span>- Réserve de sécurité</span><strong>${euro(-reserveCents)}</strong></div><div class="formula-row formula-result"><span>= Montant restant</span><strong>${euro(remainingCents)}</strong></div></div></section>`;const taxMarkup=`<section class="card tax-planning"><div class="section-head"><div><p class="eyebrow">Échéancier confirmé</p><h2>Régularisation fiscale</h2></div><span class="confidence-pill">4 prélèvements</span></div><p class="subtle">Ces montants correspondent à l'échéancier de régularisation communiqué. Ils doivent être réservés avant chaque prélèvement.</p><div class="tax-list">${taxRows.map(row=>`<div class="tax-row"><div><strong>${row.label}</strong><small>Montant prélevé à cette échéance</small></div><div class="money negative">-${euro(row.tax)}</div></div>`).join('')}</div><div class="tax-total"><span>Total des prélèvements</span><strong>-${euro(taxTotal)}</strong></div><p class="subtle">Calcul : 113 € + 113 € + 113 € + 116 € = 455 €.</p></section>`;root.innerHTML=page('Projection','Planifier','Voir les échéances, les objectifs et tester un événement futur.')+remainingMarkup+incomeMarkup+dueMarkup+taxMarkup+`<section class="card"><div class="section-head"><div><p class="eyebrow">Récurrences confirmées</p><h2>Ce qui doit sortir chaque mois</h2></div><strong class="money">${euro(-recurringTotal)}</strong></div><div class="stack">${recurringRows.map(item=>`<div class="row recurring-row"><div><strong>${esc(item.label)}</strong><small>Le ${item.day_of_month||item.usual_day||'—'} · ${esc(item.category||'Charge récurrente')}</small></div><div class="money negative">${euro(item.amount_cents)}</div><button class="chip active recurring-decision" data-recurring-id="${item.id}" data-decision="reject">Rejeter</button></div>`).join('')||'<div class="empty-state">Aucune récurrence confirmée.</div>'}</div></section><section class="card"><div class="section-head"><div><p class="eyebrow">Objectifs</p><h2>Progression</h2></div><span class="chip active">${goalRows.length}</span></div><div class="stack">${goalRows.map(goal=>{const goalCurrent=Number(goal.allocated_cents??goal.current_cents??goal.saved_cents??0),goalTarget=Number(goal.target_cents||0),pct=Math.min(100,Math.max(0,goalTarget?goalCurrent/goalTarget*100:0));return `<div class="goal-card"><div class="goal-head"><div><strong>${esc(goal.name)}</strong><small>${euro(goal.allocated_cents||goal.current_cents||0)} sur ${euro(goal.target_cents)}</small></div><span class="goal-pct">${Math.round(pct)} %</span></div><div class="progress"><i style="width:${pct}%"></i></div></div>`;}).join('')||'<div class="empty-state">Aucun objectif défini.</div>'}</div></section><section class="card"><div class="section-head"><div><p class="eyebrow">Nouvel objectif</p><h2>Créer une cible</h2></div></div><form id="goalForm" class="stack"><label class="form-label">Nom<input class="field" name="name" required placeholder="Exemple : Épargne vacances"></label><label class="form-label">Montant cible en euros<input class="field" name="target" type="number" min="1" step="0.01" required></label><label class="form-label">Date cible<input class="field" name="date" type="date"></label><button class="btn secondary">Ajouter l'objectif</button></form></section><section class="card"><div class="section-head"><div><p class="eyebrow">Allocation</p><h2>Financer un objectif</h2></div></div><form id="allocationForm" class="stack"><label class="form-label">Objectif<select class="field" name="goal" required>${goalRows.map(goal=>`<option value="${goal.id}">${esc(goal.name)}</option>`).join("")||"<option value=\"\">Aucun objectif</option>"}</select></label><label class="form-label">Montant en euros<input class="field" name="amount" type="number" min="0.01" step="0.01" required></label><label class="form-label">Date<input class="field" name="date" type="date" required></label><label class="form-label">Note<input class="field" name="note" maxlength="180" placeholder="Optionnel"></label><button class="btn secondary" ${goalRows.length?"":"disabled"}>Enregistrer l allocation</button></form></section><section class="card"><div class="section-head"><div><p class="eyebrow">Simulation</p><h2>Tester un événement</h2></div></div><form id="simulationForm" class="stack"><label class="form-label">Libellé<input class="field" name="label" value="Dépense simulée" required></label><label class="form-label">Montant en euros<input class="field" name="amount" type="number" step="0.01" min="-100000" required placeholder="Exemple : -250"></label><label class="form-label">Date<input class="field" name="date" type="date" required></label><button class="btn primary">Simuler l'impact</button></form><div id="simulationResult"></div></section>`;root.querySelectorAll('.recurring-decision').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{await api(`/api/finance/commitments/${button.dataset.recurringId}`,{method:'PATCH',body:JSON.stringify({decision:button.dataset.decision})});renderPlan();}catch(error){button.disabled=false;alert(error.message);}}));q('#allocationForm').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget.elements;try{await api(`/api/goals/${form.goal.value}/allocations`,{method:'POST',body:JSON.stringify({amount_cents:Math.round(Number(form.amount.value)*100),allocated_on:form.date.value,note:form.note.value||null})});renderPlan();}catch(error){alert(error.message);}});q('#goalForm').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget.elements;try{await api('/api/goals',{method:'POST',body:JSON.stringify({name:form.name.value,target_cents:Math.round(Number(form.target.value)*100),target_date:form.date.value||null})});renderPlan();}catch(error){alert(error.message);}});const form=q('#simulationForm');form.date.value=new Date().toISOString().slice(0,10);form.addEventListener('submit',async event=>{event.preventDefault();const result=q('#simulationResult');result.innerHTML=skeleton();try{const data=await api('/api/simulations',{method:'POST',body:JSON.stringify({label:form.label.value,amount_cents:Math.round(Number(form.amount.value)*100),due_date:form.date.value})});const base=data.baseline||{},sim=data.simulated||{};result.innerHTML=`<div class="metric-grid"><article class="card metric"><span>Safe actuel</span><strong>${euro(base.safe_to_spend_cents)}</strong></article><article class="card metric metric-accent"><span>Safe simulé</span><strong>${euro(sim.safe_to_spend_cents)}</strong></article></div><p class="subtle">Impact sur le Safe to spend : ${euro(data.impact?.safe_to_spend_delta_cents)}</p>`;}catch(error){result.innerHTML=`<div class="notice">Simulation indisponible : ${esc(error.message)}</div>`;}});}catch(error){renderError(root,'Planifier',error,'plan');}}
-  function render(name){({home:renderHome,month:renderMonth,movements:renderMovements,wealth:renderWealth,plan:renderPlan})[name]?.();}
+  const frequencyLabel=value=>({weekly:'Hebdomadaire',monthly:'Mensuelle',quarterly:'Trimestrielle',yearly:'Annuelle'})[value]||'Mensuelle';
+  const monthlyEquivalent=item=>{const amount=Math.abs(Number(item.amount_cents)||0);return item.frequency==='weekly'?Math.round(amount*52/12):item.frequency==='quarterly'?Math.round(amount/3):item.frequency==='yearly'?Math.round(amount/12):amount;};
+
+  function recurringFormMarkup(item={},accounts=[],categories=[]){
+    const amount=Math.abs(Number(item.amount_cents)||0)/100;
+    return `<form id="recurringEditorForm" class="stack">
+      <label class="form-label">Nom<input class="field" name="label" required maxlength="180" value="${esc(item.label||'')}"></label>
+      <label class="form-label">Montant en euros<input class="field" name="amount" type="number" min="0" step="0.01" required value="${amount||''}"></label>
+      <label class="form-label">Jour du mois<input class="field" name="day" type="number" min="1" max="31" required value="${item.day_of_month||1}"></label>
+      <label class="form-label">Prochaine date<input class="field" name="next" type="date" value="${item.next_occurrence||''}"></label>
+      <label class="form-label">Fréquence<select class="field" name="frequency">
+        ${[['monthly','Mensuelle'],['weekly','Hebdomadaire'],['quarterly','Trimestrielle'],['yearly','Annuelle']].map(([value,label])=>`<option value="${value}" ${(item.frequency||'monthly')===value?'selected':''}>${label}</option>`).join('')}
+      </select></label>
+      <label class="form-label">Catégorie<select class="field" name="category"><option value="">Non catégorisé</option>${categories.map(category=>`<option value="${esc(category.name)}" ${item.category===category.name?'selected':''}>${esc(category.name)}</option>`).join('')}</select></label>
+      <label class="form-label">Compte<select class="field" name="account">${accounts.map(account=>`<option value="${account.id}" ${Number(item.account_id)===Number(account.id)?'selected':''}>${esc(account.name)}</option>`).join('')}</select></label>
+      <button class="btn primary">${item.id?'Enregistrer les modifications':'Ajouter la dépense régulière'}</button>
+    </form>`;
+  }
+
+  async function openRecurringEditor(item,accounts,categories){
+    const dialog=q('#editDialog'),body=q('#editBody');
+    body.innerHTML=recurringFormMarkup(item,accounts,categories);
+    dialog.showModal();
+    q('#recurringEditorForm').addEventListener('submit',async event=>{
+      event.preventDefault();
+      const form=event.currentTarget.elements;
+      const payload={
+        account_id:Number(form.account.value),
+        label:form.label.value.trim(),
+        amount_cents:-Math.round(Math.abs(Number(form.amount.value))*100),
+        day_of_month:Number(form.day.value),
+        next_occurrence:form.next.value||null,
+        frequency:form.frequency.value,
+        category:form.category.value||null,
+        kind:'commitment',
+        certainty:'expected'
+      };
+      try{
+        await api(item.id?`/api/recurring/${item.id}`:'/api/recurring',{method:item.id?'PATCH':'POST',body:JSON.stringify(payload)});
+        dialog.close();
+        renderRecurring();
+      }catch(error){alert(error.message);}
+    });
+  }
+
+  async function renderRecurring(){
+    const root=q('[data-screen="recurring"]');
+    root.innerHTML=page('Pilotage','Dépenses régulières','Tout ce qui revient et réduit ton disponible.')+skeleton();
+    try{
+      const data=await Promise.all([api('/api/recurring?include_inactive=true'),api('/api/accounts'),api('/api/categories')]);
+      const recurring=data[0]||[],accounts=data[1]||[],categories=data[2]||[];
+      const active=recurring.filter(item=>Number(item.is_active)!==0&&Number(item.amount_cents)<0);
+      const inactive=recurring.filter(item=>Number(item.is_active)===0&&Number(item.amount_cents)<0);
+      const monthly=active.reduce((sum,item)=>sum+monthlyEquivalent(item),0);
+      const activeRows=active.map(item=>
+        '<article class="recurring-manage-row">'+
+          '<div class="recurring-main"><strong>'+esc(item.label)+'</strong><small>'+esc(item.category||'Non catégorisé')+' · '+frequencyLabel(item.frequency)+'</small></div>'+
+          '<div class="recurring-date"><span>Prochaine date</span><strong>'+(item.next_occurrence?dateLabel(item.next_occurrence):'le '+(item.day_of_month||'—'))+'</strong></div>'+
+          '<div class="money negative">'+euro(item.amount_cents)+'</div>'+
+          '<div class="recurring-actions"><button class="btn secondary recurring-edit" data-id="'+item.id+'">Modifier</button><button class="btn secondary recurring-toggle" data-id="'+item.id+'" data-active="1">Mettre en pause</button></div>'+
+        '</article>'
+      ).join('');
+      const inactiveRows=inactive.map(item=>
+        '<article class="recurring-manage-row recurring-paused">'+
+          '<div class="recurring-main"><strong>'+esc(item.label)+'</strong><small>'+esc(item.category||'Non catégorisé')+' · '+frequencyLabel(item.frequency)+' · En pause</small></div>'+
+          '<div class="money negative">'+euro(item.amount_cents)+'</div>'+
+          '<div class="recurring-actions"><button class="btn secondary recurring-edit" data-id="'+item.id+'">Modifier</button><button class="btn secondary recurring-toggle" data-id="'+item.id+'" data-active="0">Réactiver</button></div>'+
+        '</article>'
+      ).join('');
+      root.innerHTML=page('Pilotage','Dépenses régulières','Tout ce qui revient et réduit ton disponible.')+
+        '<section class="card recurring-summary"><div><p class="eyebrow">Réservé chaque mois</p><strong>'+euro(monthly)+'</strong><p class="subtle">Équivalent mensuel des dépenses régulières actives.</p></div><button class="btn primary" id="addRecurring">Ajouter</button></section>'+
+        '<section class="card"><div class="section-head"><div><p class="eyebrow">Actifs</p><h2>'+active.length+' dépense(s)</h2></div></div><div class="recurring-manage-list">'+(activeRows||'<div class="empty-state">Aucune dépense régulière active.</div>')+'</div></section>'+
+        (inactive.length?'<section class="card"><details><summary class="recurring-paused-summary"><span><p class="eyebrow">En pause</p><strong>'+inactive.length+' dépense(s)</strong></span></summary><div class="recurring-manage-list">'+inactiveRows+'</div></details></section>':'')+
+        '<section class="card recurring-help"><p class="eyebrow">Impact prévisionnel</p><p class="subtle">Une dépense mise en pause est retirée des prévisions. La réactivation la remet immédiatement dans le forecast.</p></section>'+
+        '<button class="btn secondary" data-go="month">Retour au mois</button>';
+      q('#addRecurring').addEventListener('click',()=>openRecurringEditor({},accounts,categories));
+      root.querySelectorAll('.recurring-edit').forEach(button=>button.addEventListener('click',()=>{
+        const item=recurring.find(entry=>String(entry.id)===button.dataset.id)||{};
+        openRecurringEditor(item,accounts,categories);
+      }));
+      root.querySelectorAll('.recurring-toggle').forEach(button=>button.addEventListener('click',async()=>{
+        const activeNow=button.dataset.active==='1';
+        const item=recurring.find(entry=>String(entry.id)===button.dataset.id);
+        const label=item?.label||'cette dépense régulière';
+        const message=activeNow?'Mettre '+label+' en pause ?':'Réactiver '+label+' ?';
+        if(!window.confirm(message))return;
+        button.disabled=true;
+        try{
+          await api('/api/recurring/'+button.dataset.id,{method:'PATCH',body:JSON.stringify({is_active:!activeNow})});
+          renderRecurring();
+        }catch(error){button.disabled=false;alert(error.message);}
+      }));
+      bindNavigation(root);
+    }catch(error){renderError(root,'Dépenses régulières',error,'recurring');}
+  }
+
+  function render(name){({home:renderHome,month:renderMonth,movements:renderMovements,wealth:renderWealth,recurring:renderRecurring})[name]?.();}
   function openSearch(){q('#searchDialog').showModal();setTimeout(()=>q('#globalSearch').focus(),80);}
   let searchTimer;
   function doSearch(){clearTimeout(searchTimer);const term=q('#globalSearch').value.trim(),output=q('#globalSearchResults');if(term.length<2){output.innerHTML='<div class="empty-state">Saisis au moins 2 caractères.</div>';return;}searchTimer=setTimeout(async()=>{try{const data=await api(`/api/v2.4/search?q=${encodeURIComponent(term)}&limit=10`);output.innerHTML=(data.results||[]).map(result=>`<button class="row list-button" data-type="${esc(result.type)}"><div><strong>${esc(result.title)}</strong><small>${esc(result.subtitle||result.type)}</small></div>${result.amount_cents!=null?`<div class="money">${euro(result.amount_cents)}</div>`:''}</button>`).join('')||'<div class="empty-state">Aucun résultat.</div>';output.querySelectorAll('[data-type]').forEach(button=>button.addEventListener('click',()=>{q('#searchDialog').close();nav(['movement','import','payroll','planned'].includes(button.dataset.type)?'movements':['goal','asset','account'].includes(button.dataset.type)?'wealth':'home');}));}catch(error){output.innerHTML='<div class="notice">Recherche momentanément indisponible.</div>';}},200);}

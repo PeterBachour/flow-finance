@@ -210,7 +210,7 @@ svg{display:block}
 @keyframes shimmer{to{transform:translateX(100%)}}
 .offline-banner{position:fixed;top:calc(env(safe-area-inset-top) + 7px);left:50%;z-index:60;transform:translateX(-50%);padding:8px 12px;border-radius:999px;background:var(--bad);color:#fff;font-size:.72rem;font-weight:850;box-shadow:var(--shadow-sm)}
 .hidden{display:none!important}
-.bottom-nav{position:fixed;left:50%;bottom:max(9px,env(safe-area-inset-bottom));z-index:25;transform:translateX(-50%);display:grid;grid-template-columns:repeat(5,1fr);width:min(calc(100% - 18px),600px);padding:7px;border:1px solid color-mix(in srgb,var(--line) 86%,transparent);border-radius:23px;background:color-mix(in srgb,var(--surface) 93%,transparent);box-shadow:0 18px 46px rgba(5,31,52,.16);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.bottom-nav{position:fixed;left:50%;bottom:max(9px,env(safe-area-inset-bottom));z-index:25;transform:translateX(-50%);display:grid;grid-template-columns:repeat(4,1fr);width:min(calc(100% - 18px),600px);padding:7px;border:1px solid color-mix(in srgb,var(--line) 86%,transparent);border-radius:23px;background:color-mix(in srgb,var(--surface) 93%,transparent);box-shadow:0 18px 46px rgba(5,31,52,.16);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
 .bottom-nav button{display:grid;place-items:center;gap:4px;min-height:57px;border:0;border-radius:17px;background:transparent;color:var(--muted);font-weight:720}
 .bottom-nav button span{display:grid;place-items:center}
 .bottom-nav button svg{width:21px;height:21px}
@@ -425,3 +425,71 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .accuracy-mode small{line-height:1.4}
 .accuracy-footnote{margin:12px 0 0;line-height:1.5}
 @media(max-width:640px){.forecast-accuracy-grid{grid-template-columns:1fr}.accuracy-mode{padding:14px}}
+
+
+/* V6.5 recurring expenses management */
+.recurring-entry{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.recurring-entry h2,.recurring-entry p{margin-bottom:4px}
+.recurring-summary{display:flex;align-items:center;justify-content:space-between;gap:18px}
+.recurring-summary>div>strong{display:block;margin:3px 0 4px;font-size:2rem;letter-spacing:-.04em}
+.recurring-manage-list{display:grid}
+.recurring-manage-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,.65fr) auto auto;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.recurring-manage-row:last-child{border-bottom:0}
+.recurring-main strong,.recurring-main small,.recurring-date span,.recurring-date strong{display:block}
+.recurring-main small,.recurring-date span{margin-top:4px;color:var(--muted);font-size:.7rem}
+.recurring-date strong{margin-top:4px;font-size:.8rem}
+.recurring-manage-row .money{white-space:nowrap}
+.recurring-edit{min-height:40px}
+@media(max-width:560px){.recurring-entry,.recurring-summary{align-items:stretch;flex-direction:column}.recurring-manage-row{grid-template-columns:minmax(0,1fr) auto}.recurring-date{grid-column:1}.recurring-manage-row .money{grid-column:2;grid-row:1}.recurring-edit{grid-column:1/-1;width:100%}}
+
+
+/* V7 decision-first home and month */
+.home-actions-v7{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.action-card-v7{display:grid;gap:5px;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.action-card-v7 span,.action-card-v7 small{color:var(--muted);font-size:.72rem}
+.action-card-v7 strong{font-size:.95rem}
+.compact-decision{grid-template-columns:minmax(0,1fr) auto}
+.month-flow-v7{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.month-balance-v7{grid-template-columns:1fr}
+.month-status-v7>strong{display:block;margin:5px 0;font-size:1.8rem}
+@media(max-width:699px){.home-actions-v7{grid-template-columns:1fr}.month-flow-v7{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:390px){.month-flow-v7{grid-template-columns:1fr 1fr}.action-card-v7{min-height:92px}.compact-decision{grid-template-columns:minmax(0,1fr) auto}}
+
+.hero-simulate{margin-top:15px;background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.18)}
+.simulation-result-v7{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.simulation-result-v7>div{padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface-raised)}
+.simulation-result-v7 span,.simulation-result-v7 strong{display:block}.simulation-result-v7 span{color:var(--muted);font-size:.7rem}.simulation-result-v7 strong{margin-top:5px;font-size:.95rem}
+@media(max-width:460px){.simulation-result-v7{grid-template-columns:1fr}}
+
+
+/* V7 bank-style movements */
+.movement-controls-v7{display:grid;gap:12px}
+.movement-filter-v7{overflow-x:auto;padding-bottom:2px}
+.movement-day{padding:2px 0 14px}
+.movement-day+.movement-day{border-top:1px solid var(--line);padding-top:14px}
+.movement-day-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;color:var(--muted);font-size:.72rem}
+.movement-day-head strong{color:var(--muted-strong);font-size:.76rem}
+.movement-bank-list{display:grid}
+.movement-bank-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;min-height:62px;padding:11px 0;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);text-align:left}
+.movement-bank-row:last-child{border-bottom:0}
+.movement-bank-copy{min-width:0}
+.movement-bank-copy strong,.movement-bank-copy small{display:block}
+.movement-bank-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.88rem}
+.movement-bank-copy small{margin-top:4px;color:var(--muted);font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.movement-bank-row .money{font-size:.86rem;white-space:nowrap}
+.movement-edit-amount{font-size:2rem;font-weight:880;letter-spacing:-.04em;padding:4px 0 8px}
+@media(max-width:390px){.movement-controls-v7{padding:14px}.movement-bank-row{min-height:58px;gap:8px}.movement-bank-copy strong{font-size:.84rem}.movement-bank-row .money{font-size:.8rem}.movement-overview-v7 .movement-totals{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+
+/* Recurring lifecycle controls */
+.recurring-actions{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+.recurring-paused{opacity:.72}
+.recurring-paused-summary{display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none}
+.recurring-paused-summary::-webkit-details-marker{display:none}
+.recurring-paused-summary p{margin:0 0 4px}
+@media(max-width:520px){
+  .recurring-manage-row{grid-template-columns:minmax(0,1fr) auto}
+  .recurring-manage-row .recurring-date{grid-column:1/-1}
+  .recurring-actions{grid-column:1/-1;justify-content:stretch}
+  .recurring-actions .btn{flex:1}
+}
