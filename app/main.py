@@ -401,43 +401,62 @@ def allocate_goal(goal_id: int, payload: AllocationIn):
     return dict(row)
 
 
+def _shift_recurring_date(current: date, frequency: str, day_of_month: int) -> date:
+    frequency = (frequency or 'monthly').lower()
+    if frequency == 'weekly':
+        return current + timedelta(days=7)
+
+    months = {'monthly': 1, 'quarterly': 3, 'yearly': 12}.get(frequency, 1)
+    month_index = current.year * 12 + (current.month - 1) + months
+    year, month_zero = divmod(month_index, 12)
+    month = month_zero + 1
+    day = min(max(1, int(day_of_month or current.day)), calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def _first_recurring_date(today: date, day_of_month: int, frequency: str, explicit_date: str | None) -> date:
+    if explicit_date:
+        try:
+            occurrence = date.fromisoformat(explicit_date)
+        except ValueError:
+            occurrence = today
+    else:
+        day = min(max(1, int(day_of_month or 1)), calendar.monthrange(today.year, today.month)[1])
+        occurrence = date(today.year, today.month, day)
+
+    while occurrence < today:
+        occurrence = _shift_recurring_date(occurrence, frequency, day_of_month)
+    return occurrence
+
+
 def _recurring_forecast_events(conn, today: date) -> list[PlannedEvent]:
     horizon_end = (today.replace(day=28) + timedelta(days=35)).replace(day=1)
     horizon_end = horizon_end + timedelta(days=calendar.monthrange(horizon_end.year, horizon_end.month)[1] - 1)
-    rows = conn.execute("""
+
+    recurring_columns = {row[1] for row in conn.execute('PRAGMA table_info(recurring_transactions)').fetchall()}
+    legacy_next = ', next_expected_date' if 'next_expected_date' in recurring_columns else ''
+    rows = conn.execute(f"""
         SELECT label, amount_cents, day_of_month, certainty,
-               next_expected_date, source_type
+               frequency, next_occurrence, source_type{legacy_next}
         FROM recurring_transactions
         WHERE is_active=1 AND amount_cents<>0
         ORDER BY id
     """).fetchall()
+
     events: list[PlannedEvent] = []
     for row in rows:
-        if row['next_expected_date']:
-            try:
-                occurrence = date.fromisoformat(row['next_expected_date'])
-            except ValueError:
-                occurrence = today
-        else:
-            day = min(
-                max(1, int(row['day_of_month'] or 1)),
-                calendar.monthrange(today.year, today.month)[1],
-            )
-            occurrence = date(today.year, today.month, day)
-            if occurrence < today:
-                next_month = (today.replace(day=28) + timedelta(days=4)).replace(day=1)
-                occurrence = date(
-                    next_month.year,
-                    next_month.month,
-                    min(int(row['day_of_month'] or 1), calendar.monthrange(next_month.year, next_month.month)[1]),
-                )
-        while occurrence < today:
-            next_month = (occurrence.replace(day=28) + timedelta(days=4)).replace(day=1)
-            occurrence = date(
-                next_month.year,
-                next_month.month,
-                min(int(row['day_of_month'] or 1), calendar.monthrange(next_month.year, next_month.month)[1]),
-            )
+        frequency = (row['frequency'] or 'monthly').lower()
+        if frequency not in {'weekly', 'monthly', 'quarterly', 'yearly'}:
+            frequency = 'monthly'
+        explicit_date = row['next_occurrence']
+        if not explicit_date and 'next_expected_date' in recurring_columns:
+            explicit_date = row['next_expected_date']
+        occurrence = _first_recurring_date(
+            today,
+            int(row['day_of_month'] or 1),
+            frequency,
+            explicit_date,
+        )
         while occurrence <= horizon_end:
             events.append(PlannedEvent(
                 due_date=occurrence,
@@ -447,12 +466,12 @@ def _recurring_forecast_events(conn, today: date) -> list[PlannedEvent]:
                 kind='commitment' if int(row['amount_cents']) < 0 else 'structuring_income',
                 source='recurring',
             ))
-            next_month = (occurrence.replace(day=28) + timedelta(days=4)).replace(day=1)
-            occurrence = date(
-                next_month.year,
-                next_month.month,
-                min(int(row['day_of_month'] or 1), calendar.monthrange(next_month.year, next_month.month)[1]),
+            occurrence = _shift_recurring_date(
+                occurrence,
+                frequency,
+                int(row['day_of_month'] or occurrence.day),
             )
+
     salary = conn.execute("""
         SELECT amount_cents, booking_date, label
         FROM transactions
@@ -464,7 +483,8 @@ def _recurring_forecast_events(conn, today: date) -> list[PlannedEvent]:
         ORDER BY booking_date DESC, id DESC
         LIMIT 6
     """).fetchall()
-    if salary:
+    has_recurring_income = any(event.amount_cents > 0 and event.source == 'recurring' for event in events)
+    if salary and not has_recurring_income:
         month_end_salaries = [
             row for row in salary
             if date.fromisoformat(row['booking_date']).day >= 25
@@ -480,12 +500,7 @@ def _recurring_forecast_events(conn, today: date) -> list[PlannedEvent]:
         )
         next_salary = salary_date
         while next_salary <= today:
-            next_month = (next_salary.replace(day=28) + timedelta(days=4)).replace(day=1)
-            next_salary = date(
-                next_month.year,
-                next_month.month,
-                min(salary_date.day, calendar.monthrange(next_month.year, next_month.month)[1]),
-            )
+            next_salary = _shift_recurring_date(next_salary, 'monthly', salary_date.day)
         if next_salary <= horizon_end:
             events.append(PlannedEvent(
                 due_date=next_salary,
