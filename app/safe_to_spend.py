@@ -312,7 +312,7 @@ def calculate_safe_to_spend(
         if detection_status != 'accepted':
             continue
 
-        source_type = (row['source_type'] if 'source_type' in keys else '' or '').lower()
+        source_type = ((row['source_type'] if 'source_type' in keys else '') or '').lower()
         last_seen_date = row['last_seen_date'] if 'last_seen_date' in keys else None
         auto_detected = source_type in {'history', 'auto', 'detected'}
         if auto_detected and not recurring_is_fresh(last_seen_date, as_of):
