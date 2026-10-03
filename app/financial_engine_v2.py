@@ -75,27 +75,54 @@ def _recurrence_score(row) -> float:
     return {'confirmed': 0.98, 'expected': 0.78, 'estimated': 0.58}.get(certainty, 0.42)
 
 
+def _advance_recurring_date(current: date, frequency: str, day_of_month: int) -> date:
+    frequency = (frequency or 'monthly').lower()
+    if frequency == 'weekly':
+        return current + timedelta(days=7)
+    months = {'monthly': 1, 'quarterly': 3, 'yearly': 12}.get(frequency, 1)
+    month_index = current.year * 12 + current.month - 1 + months
+    year, month_zero = divmod(month_index, 12)
+    month = month_zero + 1
+    day = min(max(1, int(day_of_month or current.day)), calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
 def _recurring_events(conn, today: date, months_ahead: int = 4) -> list[PlannedEvent]:
     rows = conn.execute("SELECT * FROM recurring_transactions WHERE is_active=1 ORDER BY id").fetchall()
+    upper_year, upper_month = _month_shift(today, months_ahead)
+    upper = date(upper_year, upper_month, calendar.monthrange(upper_year, upper_month)[1])
     result: list[PlannedEvent] = []
     for row in rows:
-        validation_status = str(
-            row['validation_status'] if 'validation_status' in row.keys() else 'confirmed'
-        ).strip().lower()
+        keys = set(row.keys())
+        validation_status = str(row['validation_status'] if 'validation_status' in keys else 'confirmed').strip().lower()
         if validation_status not in VALID_RECURRING_STATUSES:
             continue
         score = _recurrence_score(row)
         certainty = row['certainty'] or confidence_label(score)
-        for offset in range(months_ahead + 1):
-            year, month = _month_shift(today, offset)
-            day = min(int(row['day_of_month']), calendar.monthrange(year, month)[1])
-            due = date(year, month, day)
-            if due < today:
-                continue
+        frequency = str(row['frequency'] if 'frequency' in keys else 'monthly').lower()
+        if frequency not in {'weekly', 'monthly', 'quarterly', 'yearly'}:
+            frequency = 'monthly'
+        day = int(row['day_of_month'] or 1)
+        explicit = None
+        if 'next_occurrence' in keys and row['next_occurrence']:
+            explicit = row['next_occurrence']
+        elif 'next_expected_date' in keys and row['next_expected_date']:
+            explicit = row['next_expected_date']
+        if explicit:
+            try:
+                due = date.fromisoformat(explicit)
+            except ValueError:
+                due = today
+        else:
+            due = date(today.year, today.month, min(day, calendar.monthrange(today.year, today.month)[1]))
+        while due < today:
+            due = _advance_recurring_date(due, frequency, day)
+        while due <= upper:
             kind = row['kind']
             if (row['category'] or '') == 'Salaire' and int(row['amount_cents']) > 0:
                 kind = 'salary'
             result.append(PlannedEvent(due, int(row['amount_cents']), row['label'], certainty, kind, 'recurring'))
+            due = _advance_recurring_date(due, frequency, day)
     return result
 
 
