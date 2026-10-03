@@ -479,3 +479,17 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .movement-bank-row .money{font-size:.86rem;white-space:nowrap}
 .movement-edit-amount{font-size:2rem;font-weight:880;letter-spacing:-.04em;padding:4px 0 8px}
 @media(max-width:390px){.movement-controls-v7{padding:14px}.movement-bank-row{min-height:58px;gap:8px}.movement-bank-copy strong{font-size:.84rem}.movement-bank-row .money{font-size:.8rem}.movement-overview-v7 .movement-totals{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+
+/* Recurring lifecycle controls */
+.recurring-actions{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+.recurring-paused{opacity:.72}
+.recurring-paused-summary{display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none}
+.recurring-paused-summary::-webkit-details-marker{display:none}
+.recurring-paused-summary p{margin:0 0 4px}
+@media(max-width:520px){
+  .recurring-manage-row{grid-template-columns:minmax(0,1fr) auto}
+  .recurring-manage-row .recurring-date{grid-column:1/-1}
+  .recurring-actions{grid-column:1/-1;justify-content:stretch}
+  .recurring-actions .btn{flex:1}
+}
