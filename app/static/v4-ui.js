@@ -188,7 +188,8 @@
         api(`/api/v3.5/adaptive-budget?month=${state.month}`),
         api(`/api/v3.5/closeout?month=${state.month}`),
         api('/api/dashboard'),
-        api('/api/recurring')
+        api('/api/recurring'),
+        api(`/api/recurring/status?month=${state.month}`).catch(()=>({summary:{},items:[]}))
       ]);
       const current=monthData.current||{},lines=adaptive.lines||[];
       const monthClose=Number(current.projected_close_cents);
