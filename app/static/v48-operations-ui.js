@@ -96,7 +96,8 @@
     if(!preflight)return '<div class="v48-history-preflight blocked">Contrôle de continuité indisponible. Validation bloquée.</div>';
     const title=preflight.can_commit?(preflight.requires_confirmation?'Historique incomplet à confirmer':'Continuité des relevés validée'):'Validation bloquée';
     const issues=(preflight.issues||[]).map(issue=>`<li><strong>${issue.severity==='blocking'?'Bloquant':'Attention'}</strong> · ${esc(historyPreflightLabel(issue))}</li>`).join('');
-    return `<section class="v48-history-preflight ${preflight.can_commit?(preflight.requires_confirmation?'warning':'ready'):'blocked'}"><strong>${title}</strong><small>${preflight.statement_count||0} relevé(s) · ${preflight.coverage_start||'début inconnu'} au ${preflight.coverage_end||'fin inconnue'}</small>${issues?`<ul class="bulk-warning">${issues}</ul>`:''}</section>`;
+    const missing=(preflight.missing_months||[]).length?`<small>Mois manquants : ${(preflight.missing_months||[]).map(esc).join(', ')}</small>`:'';
+    return `<section class="v48-history-preflight ${preflight.can_commit?(preflight.requires_confirmation?'warning':'ready'):'blocked'}"><strong>${title}</strong><small>${preflight.statement_count||0} relevé(s) · ${preflight.coverage_start||'début inconnu'} au ${preflight.coverage_end||'fin inconnue'}</small>${missing}${issues?`<ul class="bulk-warning">${issues}</ul>`:''}</section>`;
   }
 
   function renderHistoryBatch(data){

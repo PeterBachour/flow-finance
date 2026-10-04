@@ -1,6 +1,15 @@
 {
   "releases": [
     {
+      "version": "6.6.9",
+      "date": "2026-10-04",
+      "title": "Flow V6.6.9 - Mois manquants visibles",
+      "highlights": [
+        "Mois manquants visibles avant import",
+        "Preflight historique et import generique alignes"
+      ]
+    },
+    {
       "version": "6.6.8",
       "date": "2026-10-04",
       "title": "Flow V6.6.8 - Mois manquants du corpus",

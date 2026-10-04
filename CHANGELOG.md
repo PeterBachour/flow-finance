@@ -1,3 +1,8 @@
+## 6.6.9 — Mois manquants visibles
+- L'interface d'import affiche les mois manquants du preflight.
+- Le parcours historique V4.8 et le module d'import generique partagent le meme signal.
+- Les tests verifient l'exposition UI de `missing_months`.
+
 ## 6.6.8 — Mois manquants du corpus
 - Le rapport de corpus expose maintenant `missing_months` et `missing_month_count`.
 - Les trous de releves deviennent directement exploitables par les scripts et l'UI.

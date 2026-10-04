@@ -81,6 +81,8 @@ def test_bulk_import_ui_exposes_continuity_and_blocks_invalid_commit():
 
     assert 'Contrôle de continuité' in script
     assert 'Validation bloquée' in script
+    assert 'Mois manquants' in script
+    assert 'preflight.missing_months' in script
     assert "preflight?.can_commit!==false" in script
 
 
@@ -94,6 +96,8 @@ def test_active_history_import_exposes_and_respects_preflight():
 
     assert 'Historique incomplet à confirmer' in script
     assert 'Validation bloquée' in script
+    assert 'Mois manquants' in script
+    assert 'preflight.missing_months' in script
     assert "Boolean(preflight?.can_commit)" in script
     assert "activeHistoryPreflight?.requires_confirmation?'?confirm_warnings=true':''" in script
 
