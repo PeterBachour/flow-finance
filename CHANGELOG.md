@@ -1,3 +1,9 @@
+## 6.5.14 — Montants alignés sur les mouvements affichés
+
+- Calcule le résumé après les filtres Dépenses et Revenus.
+- Explique la limite de 250 mouvements lorsque la sélection l'atteint.
+- Restaure les styles de survol et de focus des catégories accessibles au clavier.
+
 ## 6.5.13 — Classement accessible dans l'application
 
 - Charge réellement le panneau de qualité et ses styles dans l'interface active.

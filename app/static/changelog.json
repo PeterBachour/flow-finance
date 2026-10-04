@@ -1,6 +1,16 @@
 {
   "releases": [
     {
+      "version": "6.5.14",
+      "date": "2026-10-04",
+      "title": "Flow V6.5.14 - Résumé de la sélection",
+      "highlights": [
+        "Totaux calculés sur les mouvements affichés",
+        "Limite de la liste signalée",
+        "Focus clavier des catégories visible"
+      ]
+    },
+    {
       "version": "6.5.13",
       "date": "2026-10-04",
       "title": "Flow V6.5.13 - Classement accessible",

@@ -179,3 +179,22 @@ test('movement summary handles zero and negative net deterministically',()=>{
  const html=context.movementSummary([{amount_cents:-4500},{amount_cents:1000}]);
  assert.match(html,/Solde net de la sélection/);assert.match(html,/-35,00/);assert.match(html,/class="negative"/);
 });
+
+for(const filter of ['expense','income'])test(`movement ${filter} filter totals match displayed rows`,async()=>{
+ const root={innerHTML:'',querySelectorAll(){return [];}};
+ context.document.querySelector=selector=>selector.startsWith('[data-screen=')?root:{addEventListener(){}};
+ const rows=[{id:1,label:'Salary',amount_cents:5000,booking_date:'2026-10-01'},{id:2,label:'Shop',amount_cents:-1200,booking_date:'2026-10-02'}];
+ context.fetch=async url=>({ok:true,status:200,json:async()=>url.includes('/movements?')?rows:{uncategorized:0}});
+ Object.assign(context.flowState,{month:'2026-10',query:'',filter,category:null});await context.renderMovementsScreen();
+ const expected=context.movementSummary(rows.filter(row=>filter==='expense'?row.amount_cents<0:row.amount_cents>0));
+ assert.ok(root.innerHTML.includes(expected));assert.match(root.innerHTML,/<h2>1 mouvement\(s\)<\/h2>/);
+ assert.doesNotMatch(root.innerHTML,new RegExp(`data-edit="${filter==='expense'?1:2}"`));
+});
+
+test('movement list explains its limit when the response reaches 250',async()=>{
+ const root={innerHTML:'',querySelectorAll(){return [];}};
+ context.document.querySelector=selector=>selector.startsWith('[data-screen=')?root:{addEventListener(){}};
+ context.fetch=async url=>({ok:true,status:200,json:async()=>url.includes('/movements?')?Array.from({length:250},(_,i)=>({id:i,label:'Shop',amount_cents:-100,booking_date:'2026-10-01'})):{}});
+ Object.assign(context.flowState,{month:'2026-10',query:'',filter:'all',category:null});await context.renderMovementsScreen();
+ assert.match(root.innerHTML,/Affichage limité aux 250 mouvements/);
+});

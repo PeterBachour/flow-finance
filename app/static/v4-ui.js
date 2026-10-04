@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.5.13';
+  const VERSION='6.5.14';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -381,8 +381,8 @@
       root.innerHTML=page('Historique','Mouvements','Toutes tes opérations, sans bruit technique.')+`
         <section class="card movement-overview movement-overview-v7">
           <div class="section-head"><div><p class="eyebrow">${monthLabel(month)}</p><h2>Résumé du mois</h2></div><span class="confidence-pill">${rows.length} opération(s)</span></div>
-          ${movementSelectionSummary(rows)}
-          <div class="movement-selection-note">${query||filter!=='all'?`Montants calculés sur la sélection filtrée. `:''}Les transferts internes et mouvements exclus des analyses ne sont pas inclus. <strong>${summary.uncategorized||0}</strong> mouvement(s) restent à classer sur le mois.</div>
+          ${movementSelectionSummary(visible)}
+          <div class="movement-selection-note">${query||filter!=='all'?`Montants calculés sur les mouvements affichés. `:''}Les transferts internes et mouvements exclus des analyses ne sont pas inclus. <strong>${summary.uncategorized||0}</strong> mouvement(s) restent à classer sur le mois.${rows.length>=250?'<br>Affichage limité aux 250 mouvements les plus récents de cette sélection.':''}</div>
         </section>
         <section class="card movement-controls-v7">
           <div class="month-picker-controls"><button class="icon-btn" id="movementPrevMonth" aria-label="Mois précédent">‹</button><input id="movementMonth" type="month" value="${month}" aria-label="Mois des mouvements"><button class="icon-btn" id="movementNextMonth" aria-label="Mois suivant">›</button></div>
