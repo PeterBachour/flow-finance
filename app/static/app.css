@@ -493,6 +493,20 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 
 
 /* V7 bank-style movements */
+.v48-history-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.v48-history-summary>div{padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface-raised)}
+.v48-history-summary span,.v48-history-summary strong{display:block}
+.v48-history-summary span{color:var(--muted);font-size:.68rem}
+.v48-history-summary strong{margin-top:4px}
+.v48-history-list,.v48-history-documents{display:grid;gap:8px}
+.v48-history-action{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;padding:11px;border:1px solid var(--line);border-radius:13px}
+.v48-history-rank{display:grid;place-items:center;width:28px;height:28px;border-radius:999px;background:var(--surface-soft);font-size:.72rem;font-weight:800}
+.v48-history-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.v48-history-action p{margin:4px 0;font-size:.76rem}
+.v48-history-action small{display:block;margin-top:3px;color:var(--muted);font-size:.68rem}
+.v48-history-document{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.v48-history-document small{display:block;margin-top:3px;color:var(--muted)}
+@media(max-width:640px){.v48-history-summary{grid-template-columns:1fr 1fr}.v48-history-action{grid-template-columns:1fr}.v48-history-rank{display:none}}
 .movement-controls-v7{display:grid;gap:12px}
 .movement-filter-v7{overflow-x:auto;padding-bottom:2px}
 .movement-day{padding:2px 0 14px}
