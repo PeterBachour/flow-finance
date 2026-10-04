@@ -1,3 +1,10 @@
+## 6.6.0 — Trajectoire du solde visible
+
+- Affiche sur l'accueil la trajectoire du solde issue du moteur V6 existant.
+- Compare le scénario réaliste au scénario prudent et matérialise la zone d'incertitude.
+- Donne le solde à l'horizon et le point bas, avec dates, confiance et hypothèses explicites.
+- Conserve un état indisponible lorsque le solde de référence n'est pas fiable.
+
 ## 6.5.14 — Montants alignés sur les mouvements affichés
 
 - Calcule le résumé après les filtres Dépenses et Revenus.
