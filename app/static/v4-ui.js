@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.6.4';
+  const VERSION='6.6.5';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -300,7 +300,7 @@
     const selectedIsCurrent=month===new Date().toISOString().slice(0,7);
     if(!rows.length)return '<section class="card"><div class="section-head"><div><p class="eyebrow">Évolution</p><h2>Dépenses comparées</h2></div></div><div class="empty-state">Aucune donnée comparable disponible.</div></section>';
     return `<section class="card spending-trend" aria-labelledby="spendingTrendTitle">
-      <div class="section-head"><div><p class="eyebrow">Évolution</p><h2 id="spendingTrendTitle">Dépenses comparées</h2></div>${delta==null?'':`<span class="trend-delta ${delta<=0?'positive':'danger'}">${delta>0?'+':''}${euro(delta)} vs précédent</span>`}</div>
+      <div class="section-head"><div><p class="eyebrow">Évolution</p><h2 id="spendingTrendTitle">Dépenses comparées</h2></div>${delta==null?'':`<span class="trend-delta ${selectedIsCurrent?'subtle':delta<=0?'positive':'danger'}">${delta>0?'+':''}${euro(delta)} vs précédent</span>`}</div>
       <div class="spending-bars">${rows.map(item=>{
         const width=item.amount/maximum*100;
         return `<div class="spending-bar-row"><div class="spending-bar-head"><span>${esc(item.label)}</span><strong>${euro(item.amount)}</strong></div><div class="spending-bar-track" role="img" aria-label="${esc(item.label)} : ${euro(item.amount)}"><i class="${item.kind}" style="width:${width.toFixed(1)}%"></i></div></div>`;
@@ -318,19 +318,21 @@
       ['saving_cents','Épargne','Sommes mises de côté, séparées de la consommation','saving'],
       ['exceptional_cents','Dépenses exceptionnelles','Éléments exclus des habitudes mensuelles','exceptional']
     ];
-    const items=definitions.map(([key,label,detail,kind])=>{
-      const amount=Number(current[key]||0),reference=Number(previous[key]||0),delta=amount-reference;
-      const favorable=kind==='saving'?delta>=0:delta<=0;
-      return {key,label,detail,kind,amount,reference,delta,favorable};
-    }).filter(item=>['fixed_cents','variable_cents','saving_cents'].includes(item.key)||item.amount>0||item.reference>0);
-    const coverage=Number(current.semantic_coverage_pct);
-    const unknown=Number(current.unknown_cents||0);
     const selectedIsCurrent=month===new Date().toISOString().slice(0,7);
+    const items=definitions.map(([key,label,detail,kind])=>{
+      const amount=current[key]==null?NaN:Number(current[key]),reference=previous[key]==null?NaN:Number(previous[key]);
+      const delta=Number.isFinite(amount)&&Number.isFinite(reference)?amount-reference:null;
+      const favorable=kind==='saving'?delta>=0:delta<=0;
+      const tone=delta==null||selectedIsCurrent?'subtle':favorable?'positive':'danger';
+      return {key,label,detail,kind,amount,reference,delta,favorable,tone};
+    }).filter(item=>['fixed_cents','variable_cents','saving_cents'].includes(item.key)||item.amount>0||item.reference>0);
+    const coverage=current.semantic_coverage_pct==null?NaN:Number(current.semantic_coverage_pct);
+    const unknown=Number(current.unknown_cents||0);
     return `<section class="card flow-composition" aria-labelledby="flowCompositionTitle">
       <div class="section-head"><div><p class="eyebrow">Composition</p><h2 id="flowCompositionTitle">Comment se répartit le mois</h2></div>${Number.isFinite(coverage)?`<span class="confidence-pill">${coverage.toLocaleString('fr-FR',{maximumFractionDigits:1})} % classé</span>`:''}</div>
-      <div class="flow-composition-grid">${items.map(item=>`<article class="flow-composition-item ${item.kind}"><span>${esc(item.label)}</span><strong>${euro(item.amount)}</strong><small class="${item.favorable?'positive':'danger'}">${item.delta>0?'+':''}${euro(item.delta)} vs mois précédent</small><p>${esc(item.detail)}</p></article>`).join('')}</div>
+      <div class="flow-composition-grid">${items.map(item=>`<article class="flow-composition-item ${item.kind}"><span>${esc(item.label)}</span><strong>${Number.isFinite(item.amount)?euro(item.amount):'Indisponible'}</strong><small class="${item.tone}">${item.delta==null?'Comparaison indisponible':`${item.delta>0?'+':''}${euro(item.delta)} vs mois précédent`}</small><p>${esc(item.detail)}</p></article>`).join('')}</div>
       ${unknown>0?`<p class="notice">${euro(unknown)} de sorties restent à qualifier. Elles ne sont pas ajoutées artificiellement aux dépenses fixes ou variables.</p>`:''}
-      <p class="subtle">Les dépenses affichées plus haut correspondent aux fixes, variables et autres dépenses courantes. L'épargne, les transferts et les dépenses exceptionnelles restent séparés.${selectedIsCurrent?' Le mois en cours ne contient que les mouvements importés à ce jour.':''}</p>
+      <p class="subtle">Les dépenses affichées plus haut correspondent aux fixes, variables et autres dépenses courantes. L'épargne, les transferts et les dépenses exceptionnelles restent séparés.${selectedIsCurrent?' Le mois en cours ne contient que les mouvements importés à ce jour. Les écarts restent neutres tant que le mois est incomplet.':''}</p>
     </section>`;
   }
 
