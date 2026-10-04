@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.5.5';
+  const VERSION='6.5.6';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -203,17 +203,35 @@
     </section>`;
   }
 
+  function monthToolbar(month){
+    return `<section class="card month-toolbar"><button class="icon-btn" id="prevMonth" aria-label="Mois précédent">‹</button><div class="month-title"><strong>${monthLabel(month)}</strong><input class="field" id="monthPicker" type="month" value="${month}" aria-label="Mois à consulter"></div><button class="icon-btn" id="nextMonth" aria-label="Mois suivant">›</button></section>`;
+  }
+  function bindMonthToolbar(){
+    q('#prevMonth').addEventListener('click',()=>shiftMonth(-1));
+    q('#nextMonth').addEventListener('click',()=>shiftMonth(1));
+    q('#monthPicker').addEventListener('change',event=>{
+      const month=event.target.value;
+      if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))return;
+      state.month=month;
+      return renderMonth();
+    });
+  }
+
+  let monthRequest=0;
   async function renderMonth(){
-    const root=q('[data-screen="month"]');root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+skeleton();
+    const request=++monthRequest,month=state.month;
+    const root=q('[data-screen="month"]');root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+monthToolbar(month)+skeleton();
+    bindMonthToolbar();
     try{
       const [monthData,adaptive,closeout,dashboard,recurring,recurringStatus]=await Promise.all([
-        api(`/api/v2.1/months/${state.month}`),
-        api(`/api/v3.5/adaptive-budget?month=${state.month}`),
-        api(`/api/v3.5/closeout?month=${state.month}`),
+        api(`/api/v2.1/months/${month}`),
+        api(`/api/v3.5/adaptive-budget?month=${month}`),
+        api(`/api/v3.5/closeout?month=${month}`),
         api('/api/dashboard'),
         api('/api/recurring'),
-        api(`/api/recurring/status?month=${state.month}`).catch(()=>null)
+        api(`/api/recurring/status?month=${month}`).catch(()=>null)
       ]);
+      if(request!==monthRequest||month!==state.month)return;
       const current=monthData.current||{},lines=adaptive.lines||[];
       const closing=monthData.closing_explanation||{};
       const hasClosing=closing.status==='available'&&Number.isFinite(closing.closing_balance_cents);
@@ -223,7 +241,7 @@
       const recurringMonthly=activeRecurring.reduce((sum,item)=>sum+monthlyEquivalent(item),0);
       const topCategories=[...lines].sort((a,b)=>Number(b.spent_cents||0)-Number(a.spent_cents||0)).slice(0,6);
       root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+`
-        <section class="card month-toolbar"><button class="icon-btn" id="prevMonth" aria-label="Mois précédent">‹</button><div class="month-title"><strong>${monthLabel(state.month)}</strong><small>${state.month}</small></div><button class="icon-btn" id="nextMonth" aria-label="Mois suivant">›</button></section>
+        ${monthToolbar(month)}
         <section class="card month-balance month-balance-v7"><div><p class="eyebrow">Ce qui devrait rester</p><strong class="${monthClose>=0?'positive':'danger'}">${hasClosing?euro(monthClose):'Indisponible'}</strong><small class="subtle">Solde estimé à la fin du mois</small></div></section>
         <section class="month-flow-v7">
           <article class="card metric"><span>Revenus</span><strong>${euro(income)}</strong><small>sur le mois</small></article>
@@ -248,10 +266,9 @@
         </section>
         <section class="card month-status-v7"><p class="eyebrow">Écart au budget</p><strong class="${Number(closeout.variance_cents)<0?'danger':'positive'}">${euro(closeout.variance_cents)}</strong><p class="subtle">Taux d'épargne : ${closeout.savings_rate_pct??'—'} %</p></section>`;
       q('#retryRecurringStatus')?.addEventListener('click',renderMonth);
-      q('#prevMonth').addEventListener('click',()=>shiftMonth(-1));
-      q('#nextMonth').addEventListener('click',()=>shiftMonth(1));
+      bindMonthToolbar();
       bindNavigation(root);
-    }catch(error){renderError(root,'Mois',error,'month');}
+    }catch(error){if(request===monthRequest&&month===state.month)renderError(root,'Mois',error,'month');}
   }
   function shiftMonth(delta){const d=new Date(`${state.month}-15T12:00:00`);d.setMonth(d.getMonth()+delta);state.month=d.toISOString().slice(0,7);renderMonth();}
 
@@ -293,19 +310,23 @@
     },true);
   }
 
+  let movementRequest=0;
   async function renderMovements(){
+    const request=++movementRequest,month=state.month,query=state.query,filter=state.filter;
+    const isCurrent=()=>request===movementRequest&&month===state.month&&query===state.query&&filter===state.filter;
     const root=q('[data-screen="movements"]');root.innerHTML=page('Historique','Mouvements','Toutes tes opérations, sans bruit technique.')+skeleton();
     try{
-      const params=new URLSearchParams({month:state.month,limit:'250'});
-      if(state.query)params.set('q',state.query);
-      if(state.filter==='uncategorized')params.set('quality','uncategorized');
+      const params=new URLSearchParams({month,limit:'250'});
+      if(query)params.set('q',query);
+      if(filter==='uncategorized')params.set('quality','uncategorized');
       const [rows,summary]=await Promise.all([
         api(`/api/v3.1/movements?${params}`),
-        api(`/api/v3.1/movement-summary?month=${state.month}`)
+        api(`/api/v3.1/movement-summary?month=${month}`)
       ]);
+      if(!isCurrent())return;
       let visible=rows||[];
-      if(state.filter==='expense')visible=visible.filter(item=>Number(item.amount_cents)<0&&!item.is_internal_transfer);
-      if(state.filter==='income')visible=visible.filter(item=>Number(item.amount_cents)>0&&!item.is_internal_transfer);
+      if(filter==='expense')visible=visible.filter(item=>Number(item.amount_cents)<0&&!item.is_internal_transfer);
+      if(filter==='income')visible=visible.filter(item=>Number(item.amount_cents)>0&&!item.is_internal_transfer);
       const expenses=(rows||[]).filter(item=>Number(item.amount_cents)<0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
       const incomes=(rows||[]).filter(item=>Number(item.amount_cents)>0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
       const expenseTotal=expenses.reduce((sum,item)=>sum+Math.abs(Number(item.amount_cents)||0),0);
@@ -334,7 +355,7 @@
       </section>`).join('');
       root.innerHTML=page('Historique','Mouvements','Toutes tes opérations, sans bruit technique.')+`
         <section class="card movement-overview movement-overview-v7">
-          <div class="section-head"><div><p class="eyebrow">${monthLabel(state.month)}</p><h2>Résumé du mois</h2></div><span class="confidence-pill">${rows.length} opération(s)</span></div>
+          <div class="section-head"><div><p class="eyebrow">${monthLabel(month)}</p><h2>Résumé du mois</h2></div><span class="confidence-pill">${rows.length} opération(s)</span></div>
           <div class="movement-totals">
             <div><span>Dépenses</span><strong class="negative">-${euro(expenseTotal)}</strong></div>
             <div><span>Revenus</span><strong class="positive">+${euro(incomeTotal)}</strong></div>
@@ -342,9 +363,9 @@
           </div>
         </section>
         <section class="card movement-controls-v7">
-          <div class="month-picker-controls"><button class="icon-btn" id="movementPrevMonth" aria-label="Mois précédent">‹</button><input id="movementMonth" type="month" value="${state.month}" aria-label="Mois des mouvements"><button class="icon-btn" id="movementNextMonth" aria-label="Mois suivant">›</button></div>
-          <label class="search-field search-field-large"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input id="movementSearch" autocomplete="off" placeholder="Rechercher" value="${esc(state.query)}"></label>
-          <div class="chips movement-filter-v7">${[['all','Tous'],['expense','Dépenses'],['income','Revenus'],['uncategorized','À classer']].map(([key,label])=>`<button class="chip ${state.filter===key?'active':''}" data-filter="${key}">${label}</button>`).join('')}</div>
+          <div class="month-picker-controls"><button class="icon-btn" id="movementPrevMonth" aria-label="Mois précédent">‹</button><input id="movementMonth" type="month" value="${month}" aria-label="Mois des mouvements"><button class="icon-btn" id="movementNextMonth" aria-label="Mois suivant">›</button></div>
+          <label class="search-field search-field-large"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input id="movementSearch" autocomplete="off" placeholder="Rechercher" value="${esc(query)}"></label>
+          <div class="chips movement-filter-v7">${[['all','Tous'],['expense','Dépenses'],['income','Revenus'],['uncategorized','À classer']].map(([key,label])=>`<button class="chip ${filter===key?'active':''}" data-filter="${key}">${label}</button>`).join('')}</div>
         </section>
         <section class="card movement-operations-v7">
           <div class="section-head"><div><p class="eyebrow">Opérations</p><h2>${visible.length} mouvement(s)</h2></div></div>
@@ -356,7 +377,7 @@
       q('#movementNextMonth').addEventListener('click',()=>shiftMovementMonth(1));
       root.querySelectorAll('[data-filter]').forEach(button=>button.addEventListener('click',()=>{state.filter=button.dataset.filter;renderMovements();}));
       root.querySelectorAll('[data-edit]').forEach(button=>button.addEventListener('click',()=>openMovement(Number(button.dataset.edit))));
-    }catch(error){renderError(root,'Mouvements',error,'movements');}
+    }catch(error){if(isCurrent())renderError(root,'Mouvements',error,'movements');}
   }
 
   function shiftMovementMonth(delta){const d=new Date(`${state.month}-15T12:00:00`);d.setMonth(d.getMonth()+delta);state.month=d.toISOString().slice(0,7);renderMovements();}

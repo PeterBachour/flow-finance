@@ -1,3 +1,10 @@
+## 6.5.6 — Navigation mensuelle cohérente
+
+- Ajoute un sélecteur direct de mois et conserve la navigation pendant le chargement.
+- Capture le mois, la recherche et le filtre pour chaque chargement des écrans Mois et Mouvements.
+- Ignore les réponses et erreurs de requêtes dépassées par une sélection plus récente.
+- Empêche d'afficher les montants d'un ancien mois sous le titre du mois sélectionné.
+
 ## 6.5.5 — Financement des objectifs lisible
 
 - La barre de progression affiche le financement actuel plutôt que le financement projeté.
