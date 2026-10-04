@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync('app/static/v4-ui.js','utf8');
 const context={Intl,Date,URLSearchParams,FormData:class FormData{},document:{readyState:'loading',addEventListener(){},createElement(){return {set textContent(value){this.innerHTML=String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}};}}};
 vm.createContext(context);
-vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.goalCard=wealthGoalCard; globalThis.renderWealthScreen=renderWealth; globalThis.renderMovementsScreen=renderMovements; globalThis.flowState=state;\n  if(document.readyState===\'loading\')'),context);
+vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.categoryBreakdown=monthlyCategoryBreakdown; globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.goalCard=wealthGoalCard; globalThis.renderWealthScreen=renderWealth; globalThis.renderMovementsScreen=renderMovements; globalThis.flowState=state;\n  if(document.readyState===\'loading\')'),context);
 const render=context.renderRecurringCard;
 test('loading failure differs from an empty month and allows retry',()=>{
  const unavailable=render(null),empty=render({summary:{},items:[]});
@@ -147,4 +147,25 @@ test('month picker remains visible during loading and supports a direct jump',as
  assert.equal(context.flowState.month,'2025-01');assert.match(root.innerHTML,/janvier 2025/);
  resolve();await pending;assert.match(root.innerHTML,/janvier 2025/);
  await handlers['#monthPickerchange']({target:{value:''}});assert.equal(context.flowState.month,'2025-01');
+});
+
+test('category spending separates spent, planned and recommended amounts',()=>{
+ const html=context.categoryBreakdown([{category:'<Courses>',spent_cents:7500,planned_cents:5000,recommended_remaining_cents:0},{category:'Transport',spent_cents:2500,planned_cents:10000,recommended_remaining_cents:3000}]);
+ assert.match(html,/75 % des dépenses/);assert.match(html,/25 % des dépenses/);
+ assert.match(html,/Budget prévu/);assert.match(html,/Reste recommandé/);assert.match(html,/Dépassé de/);
+ assert.match(html,/hors budget ne sont pas incluses/);assert.match(html,/&lt;Courses&gt;/);
+ assert.ok(html.indexOf('&lt;Courses&gt;')<html.indexOf('Transport'));
+});
+test('category remainder preserves spending beyond the first six categories',()=>{
+ const html=context.categoryBreakdown(Array.from({length:8},(_,i)=>({category:`Cat ${i}`,spent_cents:1000})));
+ assert.match(html,/Autres catégories \(2\)/);assert.match(html,/25 % des dépenses/);
+ assert.equal((html.match(/class="budget-item"/g)||[]).length,7);
+ assert.match(html,/80,00/);assert.match(html,/20,00/);
+});
+test('empty and invalid category amounts never create invalid shares',()=>{
+ for(const lines of [[],[{spent_cents:0}],[{spent_cents:-100},{spent_cents:'invalid'}]]){
+  const html=context.categoryBreakdown(lines);assert.match(html,/Aucune dépense/);assert.doesNotMatch(html,/NaN|Infinity|width:/);
+ }
+ const html=context.categoryBreakdown([{category:'Sans budget',spent_cents:100,planned_cents:null,recommended_remaining_cents:null}]);
+ assert.doesNotMatch(html,/Budget prévu|Reste recommandé/);
 });
