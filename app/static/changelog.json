@@ -1,6 +1,16 @@
 {
   "releases": [
     {
+      "version": "6.5.6",
+      "date": "2026-10-04",
+      "title": "Flow V6.5.6 - Navigation mensuelle cohérente",
+      "highlights": [
+        "Les réponses obsolètes ne remplacent plus le mois sélectionné",
+        "Filtres et recherche des mouvements protégés contre les réponses tardives",
+        "Les erreurs anciennes ne masquent plus les résultats récents"
+      ]
+    },
+    {
       "version": "6.5.5",
       "date": "2026-10-04",
       "title": "Flow V6.5.5 - Financement des objectifs lisible",

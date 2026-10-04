@@ -3,9 +3,9 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const source=fs.readFileSync('app/static/v4-ui.js','utf8');
-const context={Intl,Date,FormData:class FormData{},document:{readyState:'loading',addEventListener(){},createElement(){return {set textContent(value){this.innerHTML=String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}};}}};
+const context={Intl,Date,URLSearchParams,FormData:class FormData{},document:{readyState:'loading',addEventListener(){},createElement(){return {set textContent(value){this.innerHTML=String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}};}}};
 vm.createContext(context);
-vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.goalCard=wealthGoalCard; globalThis.renderWealthScreen=renderWealth;\n  if(document.readyState===\'loading\')'),context);
+vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.goalCard=wealthGoalCard; globalThis.renderWealthScreen=renderWealth; globalThis.renderMovementsScreen=renderMovements; globalThis.flowState=state;\n  if(document.readyState===\'loading\')'),context);
 const render=context.renderRecurringCard;
 test('loading failure differs from an empty month and allows retry',()=>{
  const unavailable=render(null),empty=render({summary:{},items:[]});
@@ -109,3 +109,22 @@ test('successful empty goals stay empty and core wealth errors remain visible',a
  const empty=await wealthScreen();assert.match(empty,/Aucun objectif patrimonial/);assert.doesNotMatch(empty,/Suivi des objectifs indisponible/);
  const failed=await wealthScreen(['/api/v2.2/wealth']);assert.match(failed,/Service unavailable/);assert.doesNotMatch(failed,/Patrimoine net/);
 });
+
+for(const screen of ['month','movements']){
+ for(const obsoleteError of [false,true])test(`${screen}: late ${obsoleteError?'error':'success'} cannot overwrite a newer month`,async()=>{
+  const root={innerHTML:'',querySelectorAll(){return [];},querySelector(){return {addEventListener(){}};}};
+  context.document.querySelector=selector=>selector.startsWith('[data-screen=')?root:{addEventListener(){}};
+  let resolveOld;
+  const gate=new Promise(resolve=>{resolveOld=resolve;});
+  context.fetch=async url=>{
+   const primary=screen==='month'?url.includes('/api/v2.1/months/'):url.includes('/api/v3.1/movements?');
+   if(primary&&url.includes('2026-09')){await gate;if(obsoleteError)throw Error('Old month failure');}
+   return {ok:true,status:200,json:async()=>url==='/api/recurring'||url.includes('/api/v3.1/movements?')?[]:url.includes('/months/')?{current:{},closing_explanation:{status:'unavailable',reason:'selected_month_not_current'}}:{}};
+  };
+  context.flowState.month='2026-09';context.flowState.query='';context.flowState.filter='all';
+  const render=screen==='month'?context.renderMonthScreen:context.renderMovementsScreen;
+  const old=render();context.flowState.month='2026-10';await render();
+  const current=root.innerHTML;assert.ok(current.includes('octobre 2026'));
+  resolveOld();await old;assert.equal(root.innerHTML,current);
+ });
+}
