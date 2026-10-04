@@ -1,3 +1,9 @@
+## 6.5.12 — Catégorie suggérée sécurisée
+
+- Propose une catégorie lorsqu'un groupe marchand possède une catégorie unique déjà observée.
+- Préremplit uniquement le formulaire de traitement groupé, avant prévisualisation et confirmation.
+- Aucun mouvement n'est modifié automatiquement.
+
 ## 6.5.11 — Groupes de libellés prêts à classer
 
 - Affiche les groupes de libellés récurrents encore non confirmés dans Mouvements.

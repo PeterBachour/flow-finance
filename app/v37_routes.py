@@ -75,12 +75,14 @@ def data_intelligence(limit: int = 250):
             continue
         alias = aliases.get(key)
         canonical = alias['canonical_name'] if alias else key.title()
+        categories = sorted({str(item['category']) for item in group if item.get('category')})
         merchant_suggestions.append({
             'normalized_key': key,
             'canonical_name': canonical,
             'occurrences': len(group),
             'confirmed': bool(alias),
             'confidence': 1.0 if alias else min(0.95, 0.55 + len(group) * 0.07),
+            'suggested_category': categories[0] if len(categories) == 1 else None,
         })
     merchant_suggestions.sort(key=lambda x: (-x['occurrences'], x['canonical_name']))
 
