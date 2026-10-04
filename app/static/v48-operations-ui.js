@@ -2,6 +2,7 @@
   const ID='v48QualityWorkbench';
   let busy=false;
   let activeHistoryBatch=null;
+  let activeHistoryPreflight=null;
   let lastHistoryQuality=null;
   const euro=c=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:2}).format((Number(c)||0)/100);
   const esc=v=>{const d=document.createElement('div');d.textContent=v??'';return d.innerHTML.replaceAll('"','&quot;').replaceAll("'",'&#39;');};
@@ -83,22 +84,39 @@
     try{const data=await api('/api/imports/bulk/analyze',{method:'POST',body:payload});activeHistoryBatch=data.batch_id;renderHistoryBatch(data);status.textContent='Analyse terminée. Vérifie les alertes avant validation.';}catch(error){status.textContent=`Analyse impossible : ${error.message}`;review.innerHTML='';}
   }
 
+  function historyPreflightLabel(issue){
+    if(issue.type==='period_gap')return `Période manquante du ${issue.missing_start} au ${issue.missing_end}`;
+    if(issue.type==='period_overlap')return `Chevauchement entre ${issue.after_file} et ${issue.before_file}`;
+    if(issue.type==='balance_discontinuity')return `Écart de solde entre ${issue.after_file} et ${issue.before_file} : ${euro(issue.difference_cents)}`;
+    if(issue.type==='parse_error')return `${issue.file} : ${issue.detail}`;
+    return issue.type||'Contrôle à vérifier';
+  }
+
+  function renderHistoryPreflight(preflight){
+    if(!preflight)return '<div class="v48-history-preflight blocked">Contrôle de continuité indisponible. Validation bloquée.</div>';
+    const title=preflight.can_commit?(preflight.requires_confirmation?'Historique incomplet à confirmer':'Continuité des relevés validée'):'Validation bloquée';
+    const issues=(preflight.issues||[]).map(issue=>`<li><strong>${issue.severity==='blocking'?'Bloquant':'Attention'}</strong> · ${esc(historyPreflightLabel(issue))}</li>`).join('');
+    return `<section class="v48-history-preflight ${preflight.can_commit?(preflight.requires_confirmation?'warning':'ready'):'blocked'}"><strong>${title}</strong><small>${preflight.statement_count||0} relevé(s) · ${preflight.coverage_start||'début inconnu'} au ${preflight.coverage_end||'fin inconnue'}</small>${issues?`<ul class="bulk-warning">${issues}</ul>`:''}</section>`;
+  }
+
   function renderHistoryBatch(data){
     const review=document.getElementById('v48HistoryImportReview');if(!review)return;
-    const documents=data.documents||[];
-    review.innerHTML=`<div class="v48-history-documents">${documents.map(document=>`<div class="v48-history-document"><div><strong>${esc(document.filename)}</strong><small>${esc(document.period||'Période non détectée')}${document.warning?` · ${esc(document.warning)}`:''}</small></div><span class="chip ${document.warning?'warning':'active'}">${esc(document.document_type||'inconnu')}</span></div>`).join('')}</div><div class="toolbar"><button class="btn secondary" type="button" id="v48HistoryDiscard">Abandonner</button><button class="btn primary" type="button" id="v48HistoryCommit">Valider le lot</button></div>`;
+    const documents=data.documents||[],preflight=data.preflight||null;activeHistoryPreflight=preflight;
+    const canCommit=Boolean(preflight?.can_commit)&&documents.some(document=>document.document_type==='statement'||(document.document_type==='payroll'&&document.status==='ready'));
+    const commitLabel=preflight?.requires_confirmation?'Confirmer et importer':'Valider le lot';
+    review.innerHTML=`${renderHistoryPreflight(preflight)}<div class="v48-history-documents">${documents.map(document=>`<div class="v48-history-document"><div><strong>${esc(document.filename)}</strong><small>${esc(document.period||'Période non détectée')}${document.warning?` · ${esc(document.warning)}`:''}</small></div><span class="chip ${document.warning?'warning':'active'}">${esc(document.document_type||'inconnu')}</span></div>`).join('')}</div><div class="toolbar"><button class="btn secondary" type="button" id="v48HistoryDiscard">Abandonner</button><button class="btn primary" type="button" id="v48HistoryCommit" ${canCommit?'':'disabled'}>${commitLabel}</button></div>`;
     document.getElementById('v48HistoryDiscard')?.addEventListener('click',discardHistoryBatch);
     document.getElementById('v48HistoryCommit')?.addEventListener('click',commitHistoryBatch);
   }
 
   async function commitHistoryBatch(){
     if(!activeHistoryBatch)return;const status=document.getElementById('v48HistoryImportStatus');
-    try{const result=await api(`/api/imports/bulk/${activeHistoryBatch}/commit`,{method:'POST'});status.textContent=`Import terminé : ${result.statements||0} relevé(s), ${result.payrolls||0} fiche(s), ${result.transactions||0} mouvement(s).`;activeHistoryBatch=null;setTimeout(()=>{dialog()?.close();refresh();},900);}catch(error){status.textContent=`Validation impossible : ${error.message}`;}
+    try{const confirmation=activeHistoryPreflight?.requires_confirmation?'?confirm_warnings=true':'';const result=await api(`/api/imports/bulk/${activeHistoryBatch}/commit${confirmation}`,{method:'POST'});status.textContent=`Import terminé : ${result.statements||0} relevé(s), ${result.payrolls||0} fiche(s), ${result.transactions||0} mouvement(s).`;activeHistoryBatch=null;activeHistoryPreflight=null;setTimeout(()=>{dialog()?.close();refresh();},900);}catch(error){status.textContent=`Validation impossible : ${error.message}`;}
   }
 
   async function discardHistoryBatch(){
     if(!activeHistoryBatch)return;const status=document.getElementById('v48HistoryImportStatus');
-    try{await api(`/api/imports/bulk/${activeHistoryBatch}`,{method:'DELETE'});activeHistoryBatch=null;status.textContent='Lot abandonné. Aucune donnée importée.';document.getElementById('v48HistoryImportReview').innerHTML='';}catch(error){status.textContent=`Abandon impossible : ${error.message}`;}
+    try{await api(`/api/imports/bulk/${activeHistoryBatch}`,{method:'DELETE'});activeHistoryBatch=null;activeHistoryPreflight=null;status.textContent='Lot abandonné. Aucune donnée importée.';document.getElementById('v48HistoryImportReview').innerHTML='';}catch(error){status.textContent=`Abandon impossible : ${error.message}`;}
   }
 
   async function refresh(){

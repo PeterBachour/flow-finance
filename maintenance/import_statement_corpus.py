@@ -116,7 +116,8 @@ def analyze_continuity(probes: list[StatementProbe]) -> dict:
             })
 
         if (
-            current.closing_balance_cents is not None
+            following_start == expected_start
+            and current.closing_balance_cents is not None
             and following.opening_balance_cents is not None
             and current.closing_balance_cents != following.opening_balance_cents
         ):

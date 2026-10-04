@@ -1,3 +1,10 @@
+## 6.6.3 — Import historique contrôlé
+
+- Affiche le contrôle de continuité directement dans le parcours de fiabilisation actif.
+- Bloque la validation si un relevé est illisible, chevauche une période ou rompt un solde contigu.
+- Exige une confirmation explicite pour importer un historique qui conserve une période manquante.
+- Évite de signaler un faux écart de solde lorsque le relevé intermédiaire est absent.
+
 ## 6.6.2 — Plan de fiabilisation accessible
 
 - Raccorde le moteur d'actions qualité V5.7 à l'écran Mouvements réellement chargé.

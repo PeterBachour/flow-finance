@@ -84,6 +84,20 @@ def test_bulk_import_ui_exposes_continuity_and_blocks_invalid_commit():
     assert "preflight?.can_commit!==false" in script
 
 
+def test_active_history_import_exposes_and_respects_preflight():
+    script = (
+        Path(__file__).resolve().parents[1]
+        / 'app'
+        / 'static'
+        / 'v48-operations-ui.js'
+    ).read_text(encoding='utf-8')
+
+    assert 'Historique incomplet à confirmer' in script
+    assert 'Validation bloquée' in script
+    assert "Boolean(preflight?.can_commit)" in script
+    assert "activeHistoryPreflight?.requires_confirmation?'?confirm_warnings=true':''" in script
+
+
 def test_bulk_commit_reports_review_workload_in_api_and_ui():
     root = Path(__file__).resolve().parents[1]
     service = (root / 'app' / 'bulk_import.py').read_text(encoding='utf-8')
