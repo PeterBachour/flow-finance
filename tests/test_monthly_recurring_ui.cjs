@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync('app/static/v4-ui.js','utf8');
 const context={Intl,Date,FormData:class FormData{},document:{readyState:'loading',addEventListener(){},createElement(){return {set textContent(value){this.innerHTML=String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}};}}};
 vm.createContext(context);
-vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth;\n  if(document.readyState===\'loading\')'),context);
+vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome;\n  if(document.readyState===\'loading\')'),context);
 const render=context.renderRecurringCard;
 test('loading failure differs from an empty month and allows retry',()=>{
  const unavailable=render(null),empty=render({summary:{},items:[]});
@@ -49,4 +49,27 @@ test('month screen uses engine components instead of inferred adjustment',async(
  const html=await monthScreen({status:'available',as_of:'2026-10-04',target_date:'2026-10-31',opening_balance_cents:100000,expected_income_cents:20000,expected_outflows_cents:5000,variable_spending_cents:1000,closing_balance_cents:114000,assumptions:{realistic_daily_cents:37}});
  for(const text of ['Solde de référence','Revenus attendus','Échéances restantes','Dépenses variables estimées','ne sont pas déduits une seconde fois'])assert.ok(html.includes(text),text);
  assert.doesNotMatch(html,/Indisponible|Échéances et prévisions restantes/);
+});
+
+async function homeScreen(payload){
+ const root={innerHTML:'',querySelectorAll(){return [];}};
+ context.document.querySelector=selector=>selector==='[data-screen="home"]'?root:{addEventListener(){}};
+ context.fetch=async url=>({ok:true,status:200,json:async()=>url==='/api/v6/safe-to-spend'?payload:url==='/api/recurring'?[]:{}});
+ await context.renderHomeScreen();
+ return root.innerHTML;
+}
+test('unavailable certified balance hides amount formula and simulation',async()=>{
+ const html=await homeScreen({availability:{available:false,status:'unavailable_stale_balance'},safe_to_spend:{total_cents:null,calculated_cents:null},components:{current_balance_cents:100000}});
+ assert.match(html,/<div class="hero-amount">Indisponible<\/div>/);
+ assert.match(html,/trop ancien/);
+ assert.doesNotMatch(html,/id="simulatePurchase"|Résultat après réserves/);
+});
+test('certified components and negative result are distinct from spendable zero',async()=>{
+ const html=await homeScreen({availability:{available:true},safe_to_spend:{total_cents:0,calculated_cents:-2500},components:{current_balance_cents:10000,confirmed_commitments_cents:5000,probable_recurring_cents:6000,goal_reservations_cents:1000,safety_reserve_cents:500}});
+ assert.match(html,/id="simulatePurchase"/);
+ assert.match(html,/Résultat après réserves/);
+ assert.match(html,/Il manque/);
+ const euro=value=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:2}).format(value/100);
+ for(const amount of [-5000,-6000,-2500])assert.ok(html.includes(euro(amount)));
+ assert.ok(html.includes('<div class="hero-amount">'+euro(0)+'</div>'));
 });

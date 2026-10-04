@@ -1,6 +1,16 @@
 {
   "releases": [
     {
+      "version": "6.5.3",
+      "date": "2026-10-04",
+      "title": "Flow V6.5.3 - Disponible certifié sur l'accueil",
+      "highlights": [
+        "Disponible indisponible si le solde est obsolète ou absent",
+        "Calcul affiché aligné sur les composantes certifiées",
+        "Déficit après réserves distingué du disponible à dépenser"
+      ]
+    },
+    {
       "version": "6.5.2",
       "date": "2026-10-04",
       "title": "Flow V6.5.2 - Fin de mois explicable",

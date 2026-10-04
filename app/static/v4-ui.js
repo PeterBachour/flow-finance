@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.5.2';
+  const VERSION='6.5.3';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -137,18 +137,21 @@
       const activeRecurring=(recurring||[]).filter(item=>Number(item.is_active)!==0&&Number(item.amount_cents)<0);
       const recurringMonthly=activeRecurring.reduce((sum,item)=>sum+monthlyEquivalent(item),0);
       const opening=Number(components.current_balance_cents??dashboard.accounts?.[0]?.current_balance_cents??0);
-      const planned=Math.abs(Number(components.planned_outflows_cents||0));
-      const recurringReserve=Math.abs(Number(components.recurring_outflows_cents??components.recurring_reserve_cents??0));
+      const planned=Math.abs(Number(components.confirmed_commitments_cents||0));
+      const recurringReserve=Math.abs(Number(components.probable_recurring_cents||0));
       const goals=Math.abs(Number(components.goal_reservations_cents||0));
       const reserve=Math.abs(Number(components.safety_reserve_cents||0));
-      const available=Number(safe.calculated_cents??safe.today_cents??0);
+      const hasAvailable=safeToSpend?.availability?.available===true&&Number.isFinite(safe.total_cents)&&Number.isFinite(safe.calculated_cents);
+      const available=hasAvailable?safe.total_cents:null;
+      const calculated=hasAvailable?safe.calculated_cents:null;
+      const unavailableReason=({unavailable_stale_balance:'Le solde de référence est trop ancien.',unavailable_no_balance_date:'Aucun solde de référence fiable.',unavailable_no_account:'Aucun compte inclus dans le calcul.'})[safeToSpend?.availability?.status]||'Le solde de référence ne permet pas de calculer un montant fiable.';
       const nextIncome=dashboard?.forecast?.next_income;
       root.innerHTML=page('Aujourd’hui',todayLabel(),'Ce que tu peux réellement dépenser, et pourquoi.')+`
         <section class="card hero decision-hero-v7">
           <p class="hero-label">Disponible à dépenser</p>
-          <div class="hero-amount">${euro(available)}</div>
-          <p class="hero-copy">Après les échéances prévues, les dépenses régulières, les objectifs et le coussin de sécurité.</p>
-          <button class="btn hero-simulate" id="simulatePurchase">Simuler une dépense</button>
+          <div class="hero-amount">${hasAvailable?euro(available):'Indisponible'}</div>
+          <p class="hero-copy">${hasAvailable?'Après les échéances prévues, les dépenses régulières, les objectifs et le coussin de sécurité.':esc(unavailableReason)}</p>
+          ${hasAvailable?'<button class="btn hero-simulate" id="simulatePurchase">Simuler une dépense</button>':''}
           <div class="hero-facts">
             <div class="hero-fact"><span>Solde réel</span><strong>${euro(opening)}</strong><small>${dateLabel(dashboard.accounts?.[0]?.balance_as_of||safeToSpend?.as_of)}</small></div>
             <div class="hero-fact"><span>Réguliers / mois</span><strong>${euro(recurringMonthly)}</strong><small>${activeRecurring.length} actif(s)</small></div>
@@ -157,14 +160,14 @@
         </section>
         <section class="card explain-card">
           <div class="section-head"><div><p class="eyebrow">Comprendre le calcul</p><h2>D'où vient ce montant</h2></div></div>
-          <div class="formula">
+          ${hasAvailable?`<div class="formula">
             <div class="formula-row"><span>Solde réel</span><strong>${euro(opening)}</strong></div>
             <div class="formula-row"><span>- Échéances prévues</span><strong>${euro(-planned)}</strong></div>
             <div class="formula-row"><span>- Dépenses régulières réservées</span><strong>${euro(-recurringReserve)}</strong></div>
             <div class="formula-row"><span>- Objectifs réservés</span><strong>${euro(-goals)}</strong></div>
             <div class="formula-row"><span>- Coussin de sécurité</span><strong>${euro(-reserve)}</strong></div>
-            <div class="formula-row formula-result"><span>= Disponible à dépenser</span><strong>${euro(available)}</strong></div>
-          </div>
+            <div class="formula-row formula-result"><span>= Résultat après réserves</span><strong>${euro(calculated)}</strong></div>
+          </div><p class="subtle">Le disponible est limité à zéro si le résultat après réserves est négatif.</p>${calculated<0?`<p class="notice">Il manque ${euro(-calculated)} pour couvrir les réserves prévues.</p>`:''}`:`<p class="notice" role="status">${esc(unavailableReason)} Actualise le solde ou importe un relevé récent avant de simuler une dépense.</p>`}
         </section>
         <section class="card">
           <div class="section-head"><div><p class="eyebrow">À venir</p><h2>Prochaines sorties</h2></div><button class="section-action" data-go="recurring">Voir les réguliers</button></div>

@@ -1,3 +1,10 @@
+## 6.5.3 — Disponible certifié sur l'accueil
+
+- Respecte la disponibilité du contrat V6 et conserve les montants inconnus sans conversion en zéro.
+- Masque la simulation tant que le disponible n'est pas fiable.
+- Corrige les clés des composantes : engagements confirmés et récurrences probables.
+- Distingue le disponible plafonné à zéro du déficit après réserves.
+
 ## 6.5.2 — Fin de mois explicable
 
 - Calcule le solde de clôture au dernier jour du mois courant à partir de la trajectoire réaliste V6.
