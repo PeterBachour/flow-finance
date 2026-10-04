@@ -31,14 +31,14 @@ def test_contiguous_statements_are_clean():
     assert report['has_balance_discontinuity'] is False
 
 
-def test_gap_and_balance_break_are_reported():
+def test_gap_does_not_report_a_false_balance_break():
     report = analyze_continuity([
         probe('september.pdf', '2025-08-30', '2025-09-30', 346029, 259996),
         probe('november.pdf', '2025-11-01', '2025-11-28', 256504, 251902),
     ])
 
     assert report['has_period_gap'] is True
-    assert report['has_balance_discontinuity'] is True
+    assert report['has_balance_discontinuity'] is False
     assert report['has_period_overlap'] is False
     assert report['issues'][0] == {
         'type': 'period_gap',
@@ -48,8 +48,7 @@ def test_gap_and_balance_break_are_reported():
         'missing_end': '2025-10-31',
         'missing_days': 31,
     }
-    assert report['issues'][1]['type'] == 'balance_discontinuity'
-    assert report['issues'][1]['difference_cents'] == -3492
+    assert len(report['issues']) == 1
 
 
 def test_overlap_is_not_mistaken_for_gap():

@@ -1,6 +1,16 @@
 {
   "releases": [
     {
+      "version": "6.6.3",
+      "date": "2026-10-04",
+      "title": "Flow V6.6.3 - Import historique contrôlé",
+      "highlights": [
+        "Continuité visible avant validation",
+        "Blocages comptables appliqués dans le parcours actif",
+        "Confirmation explicite des périodes manquantes"
+      ]
+    },
+    {
       "version": "6.6.2",
       "date": "2026-10-04",
       "title": "Flow V6.6.2 - Plan de fiabilisation",
