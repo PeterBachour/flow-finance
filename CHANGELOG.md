@@ -1,3 +1,9 @@
+## 6.6.5 — Comparaisons mensuelles prudentes
+
+- Conserve des écarts neutres pour le mois en cours, encore partiel.
+- Affiche les montants et comparaisons absents comme indisponibles.
+- Ne transforme plus une couverture de classification absente en 0 %.
+
 ## 6.6.4 — Composition mensuelle lisible
 
 - Sépare dans l'écran Mois les dépenses fixes, variables et autres dépenses courantes.

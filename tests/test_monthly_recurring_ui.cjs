@@ -48,7 +48,8 @@ test('missing projection stays unavailable instead of becoming zero',async()=>{
 test('month screen uses engine components instead of inferred adjustment',async()=>{
  const html=await monthScreen({status:'available',as_of:'2026-10-04',target_date:'2026-10-31',opening_balance_cents:100000,expected_income_cents:20000,expected_outflows_cents:5000,variable_spending_cents:1000,closing_balance_cents:114000,assumptions:{realistic_daily_cents:37}});
  for(const text of ['Solde de référence','Revenus attendus','Échéances restantes','Dépenses variables estimées','ne sont pas déduits une seconde fois'])assert.ok(html.includes(text),text);
- assert.doesNotMatch(html,/Indisponible|Échéances et prévisions restantes/);
+ assert.doesNotMatch(html,/Échéances et prévisions restantes/);
+ assert.doesNotMatch(html.match(/<div class="formula">[\s\S]*?<\/div><p class="subtle">/)?.[0]||'',/Indisponible/);
 });
 
 test('spending trend compares current, previous and averages without presenting a partial month as final',()=>{
@@ -56,7 +57,7 @@ test('spending trend compares current, previous and averages without presenting 
  const html=context.renderSpendingTrend({current:{spent_cents:80000},previous:{spent_cents:100000},average_3m:{spent_cents:90000},average_6m:{spent_cents:85000}},activeMonth);
  for(const text of ['Dépenses comparées','Mois précédent','Moyenne 3 mois','Moyenne 6 mois','mouvements importés à ce jour','transferts internes sont exclus'])assert.ok(html.includes(text),text);
  assert.match(html,/vs précédent/);
- assert.match(html,/class="trend-delta positive"/);
+ assert.match(html,/class="trend-delta subtle"/);
  assert.doesNotMatch(html,/NaN|undefined|Infinity/);
 });
 
@@ -72,8 +73,8 @@ test('month composition separates consumption, savings and exceptional outflows'
   previous:{fixed_cents:44000,variable_cents:35000,other_classified_cents:0,saving_cents:10000,exceptional_cents:0}
  },new Date().toISOString().slice(0,7));
  for(const text of ['Comment se répartit le mois','Dépenses fixes','Dépenses variables','Autres dépenses courantes','Épargne','Dépenses exceptionnelles','96,8 % classé','sorties restent à qualifier','ne sont pas ajoutées artificiellement','mois en cours ne contient que les mouvements importés'])assert.ok(html.includes(text),text);
- assert.match(html,/class="positive">-5/);
- assert.match(html,/class="flow-composition-item saving"[\s\S]*class="positive">\+/);
+ assert.match(html,/class="subtle">-5/);
+ assert.match(html,/class="flow-composition-item saving"[\s\S]*class="subtle">\+/);
  assert.doesNotMatch(html,/NaN|undefined|Infinity/);
 });
 
@@ -252,4 +253,16 @@ test('movement list explains its limit when the response reaches 250',async()=>{
  context.fetch=async url=>({ok:true,status:200,json:async()=>url.includes('/movements?')?Array.from({length:250},(_,i)=>({id:i,label:'Shop',amount_cents:-100,booking_date:'2026-10-01'})):{}});
  Object.assign(context.flowState,{month:'2026-10',query:'',filter:'all',category:null});await context.renderMovementsScreen();
  assert.match(root.innerHTML,/Affichage limité aux 250 mouvements/);
+});
+
+test('missing month composition amounts and coverage remain unavailable',()=>{
+ const html=context.renderFlowComposition({current:{semantic_coverage_pct:null},previous:{}},'2026-08');
+ assert.match(html,/Indisponible/);
+ assert.match(html,/Comparaison indisponible/);
+ assert.doesNotMatch(html,/% classé|vs mois précédent|class="positive"|class="danger"|NaN|undefined/);
+});
+test('completed month comparisons retain direction when both amounts exist',()=>{
+ const html=context.renderFlowComposition({current:{fixed_cents:10000,saving_cents:5000},previous:{fixed_cents:20000,saving_cents:4000}},'2025-08');
+ assert.match(html,/class="positive">-100/);
+ assert.match(html,/class="positive">\+/);
 });

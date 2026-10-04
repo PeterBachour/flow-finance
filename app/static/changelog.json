@@ -1,6 +1,15 @@
 {
   "releases": [
     {
+      "version": "6.6.5",
+      "date": "2026-10-04",
+      "title": "Flow V6.6.5 - Comparaisons prudentes",
+      "highlights": [
+        "Écarts neutres pour le mois en cours",
+        "Données absentes explicitement indisponibles"
+      ]
+    },
+    {
       "version": "6.6.4",
       "date": "2026-10-04",
       "title": "Flow V6.6.4 - Composition mensuelle",
