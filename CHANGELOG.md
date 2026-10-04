@@ -1,3 +1,10 @@
+## 6.5.13 — Classement accessible dans l'application
+
+- Charge réellement le panneau de qualité et ses styles dans l'interface active.
+- Raccorde les actions aux contrôles Mouvements et protège les réponses devenues obsolètes.
+- Signale les diagnostics indisponibles et sécurise les motifs préremplis.
+- Teste le chargement, l'affichage et l'ouverture du formulaire sans écriture automatique.
+
 ## 6.5.12 — Catégorie suggérée sécurisée
 
 - Propose une catégorie lorsqu'un groupe marchand possède une catégorie unique déjà observée.
