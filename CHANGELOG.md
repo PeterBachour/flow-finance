@@ -1,3 +1,8 @@
+## 6.6.6 — Preflight corpus aligné
+- Le dry-run d'import de corpus réutilise la décision du preflight applicatif.
+- Les audits de releves exposent maintenant `status`, `can_commit`, `requires_confirmation` et les compteurs bloquants/avertissements.
+- Validation sur les 23 releves joints : parsing complet, un avertissement attendu pour octobre 2025 manquant.
+
 ## 6.6.5 — Comparaisons mensuelles prudentes
 
 - Conserve des écarts neutres pour le mois en cours, encore partiel.

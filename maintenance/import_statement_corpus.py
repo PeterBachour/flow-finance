@@ -6,7 +6,6 @@ import json
 import sqlite3
 import sys
 from dataclasses import asdict, dataclass
-from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +14,7 @@ if str(ROOT) not in sys.path:
 
 from app.bulk_import import commit_batch, ensure_bulk_schema, stage_document
 from app.imports import parse_statement, statement_metadata
+from app.statement_corpus_preflight import StatementRecord, analyze_records
 
 SUPPORTED_SUFFIXES = {'.pdf', '.csv'}
 
@@ -31,15 +31,6 @@ class StatementProbe:
     credit_total_cents: int
     transaction_count: int
     parse_error: str | None = None
-
-
-def _parse_iso(value: str | None) -> date | None:
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        return None
 
 
 def inspect_statement(path: Path) -> StatementProbe:
@@ -81,72 +72,40 @@ def inspect_corpus(source_dir: Path) -> list[StatementProbe]:
     return [inspect_statement(path) for path in files]
 
 
+def _probe_record(probe: StatementProbe) -> StatementRecord:
+    return StatementRecord(
+        source='corpus',
+        source_id=0,
+        filename=probe.filename,
+        period_start=probe.period_start,
+        period_end=probe.period_end,
+        opening_balance_cents=probe.opening_balance_cents,
+        closing_balance_cents=probe.closing_balance_cents,
+        status='warning' if probe.parse_error else 'ready',
+        warning=probe.parse_error,
+        staged=True,
+    )
+
+
 def analyze_continuity(probes: list[StatementProbe]) -> dict:
-    valid = [
-        probe for probe in probes
-        if not probe.parse_error and _parse_iso(probe.period_start) and _parse_iso(probe.period_end)
-    ]
-    valid.sort(key=lambda probe: (_parse_iso(probe.period_start), _parse_iso(probe.period_end), probe.filename))
-
-    issues: list[dict] = []
-    for current, following in zip(valid, valid[1:]):
-        current_end = _parse_iso(current.period_end)
-        following_start = _parse_iso(following.period_start)
-        if current_end is None or following_start is None:
-            continue
-
-        expected_start = current_end + timedelta(days=1)
-        if following_start > expected_start:
-            issues.append({
-                'type': 'period_gap',
-                'after_file': current.filename,
-                'before_file': following.filename,
-                'missing_start': expected_start.isoformat(),
-                'missing_end': (following_start - timedelta(days=1)).isoformat(),
-                'missing_days': (following_start - expected_start).days,
-            })
-        elif following_start < expected_start:
-            issues.append({
-                'type': 'period_overlap',
-                'after_file': current.filename,
-                'before_file': following.filename,
-                'overlap_start': following_start.isoformat(),
-                'overlap_end': current_end.isoformat(),
-                'overlap_days': (current_end - following_start).days + 1,
-            })
-
-        if (
-            following_start == expected_start
-            and current.closing_balance_cents is not None
-            and following.opening_balance_cents is not None
-            and current.closing_balance_cents != following.opening_balance_cents
-        ):
-            issues.append({
-                'type': 'balance_discontinuity',
-                'after_file': current.filename,
-                'before_file': following.filename,
-                'closing_balance_cents': current.closing_balance_cents,
-                'next_opening_balance_cents': following.opening_balance_cents,
-                'difference_cents': following.opening_balance_cents - current.closing_balance_cents,
-            })
-
+    preflight = analyze_records([_probe_record(probe) for probe in probes])
     parse_errors = [
         {'filename': probe.filename, 'error': probe.parse_error}
         for probe in probes if probe.parse_error
     ]
-    if valid:
-        coverage_start = valid[0].period_start
-        coverage_end = valid[-1].period_end
-    else:
-        coverage_start = None
-        coverage_end = None
-
+    issues = preflight['issues']
     return {
         'file_count': len(probes),
-        'parsed_statement_count': len(valid),
+        'parsed_statement_count': preflight['statement_count'],
         'parse_errors': parse_errors,
-        'coverage_start': coverage_start,
-        'coverage_end': coverage_end,
+        'coverage_start': preflight['coverage_start'],
+        'coverage_end': preflight['coverage_end'],
+        'status': preflight['status'],
+        'can_commit': preflight['can_commit'],
+        'requires_confirmation': preflight['requires_confirmation'],
+        'blocking_count': preflight['blocking_count'],
+        'warning_count': preflight['warning_count'],
+        'duplicate_statement_count': preflight['duplicate_statement_count'],
         'issues': issues,
         'has_period_gap': any(issue['type'] == 'period_gap' for issue in issues),
         'has_period_overlap': any(issue['type'] == 'period_overlap' for issue in issues),

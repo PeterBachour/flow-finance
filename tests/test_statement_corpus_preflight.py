@@ -149,3 +149,34 @@ def test_guarded_commit_requires_explicit_gap_confirmation(monkeypatch):
     result = routes.guarded_bulk_commit(12, confirm_warnings=True)
     assert result['ok'] is True
     assert commit_called is True
+
+
+def test_corpus_cli_continuity_reuses_preflight_decision_fields():
+    from maintenance.import_statement_corpus import StatementProbe, analyze_continuity
+
+    def probe(name, start, end, opening, closing, parse_error=None):
+        return StatementProbe(
+            filename=name,
+            path=name,
+            period_start=start,
+            period_end=end,
+            opening_balance_cents=opening,
+            closing_balance_cents=closing,
+            debit_total_cents=0,
+            credit_total_cents=0,
+            transaction_count=0,
+            parse_error=parse_error,
+        )
+
+    result = analyze_continuity([
+        probe('jan.pdf', '2026-01-01', '2026-01-31', 100_00, 150_00),
+        probe('mar.pdf', '2026-03-01', '2026-03-31', 150_00, 120_00),
+    ])
+
+    assert result['status'] == 'warning'
+    assert result['can_commit'] is True
+    assert result['requires_confirmation'] is True
+    assert result['warning_count'] == 1
+    assert result['blocking_count'] == 0
+    assert result['issues'][0]['severity'] == 'warning'
+    assert result['issues'][0]['missing_start'] == '2026-02-01'
