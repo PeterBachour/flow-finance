@@ -1,6 +1,16 @@
 {
   "releases": [
     {
+      "version": "6.6.4",
+      "date": "2026-10-04",
+      "title": "Flow V6.6.4 - Composition mensuelle",
+      "highlights": [
+        "Dépenses fixes et variables séparées",
+        "Épargne et exceptionnel isolés de la consommation",
+        "Écarts mensuels et couverture de classification visibles"
+      ]
+    },
+    {
       "version": "6.6.3",
       "date": "2026-10-04",
       "title": "Flow V6.6.3 - Import historique contrôlé",

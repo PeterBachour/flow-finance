@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.6.3';
+  const VERSION='6.6.4';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -309,6 +309,31 @@
     </section>`;
   }
 
+  function monthlyFlowComposition(data,month){
+    const current=data?.current||{},previous=data?.previous||{};
+    const definitions=[
+      ['fixed_cents','Dépenses fixes','Abonnements et charges régulières','fixed'],
+      ['variable_cents','Dépenses variables','Dépenses pilotables du quotidien','variable'],
+      ['other_classified_cents','Autres dépenses courantes','Dépenses classées hors catégories fixes et variables','other'],
+      ['saving_cents','Épargne','Sommes mises de côté, séparées de la consommation','saving'],
+      ['exceptional_cents','Dépenses exceptionnelles','Éléments exclus des habitudes mensuelles','exceptional']
+    ];
+    const items=definitions.map(([key,label,detail,kind])=>{
+      const amount=Number(current[key]||0),reference=Number(previous[key]||0),delta=amount-reference;
+      const favorable=kind==='saving'?delta>=0:delta<=0;
+      return {key,label,detail,kind,amount,reference,delta,favorable};
+    }).filter(item=>['fixed_cents','variable_cents','saving_cents'].includes(item.key)||item.amount>0||item.reference>0);
+    const coverage=Number(current.semantic_coverage_pct);
+    const unknown=Number(current.unknown_cents||0);
+    const selectedIsCurrent=month===new Date().toISOString().slice(0,7);
+    return `<section class="card flow-composition" aria-labelledby="flowCompositionTitle">
+      <div class="section-head"><div><p class="eyebrow">Composition</p><h2 id="flowCompositionTitle">Comment se répartit le mois</h2></div>${Number.isFinite(coverage)?`<span class="confidence-pill">${coverage.toLocaleString('fr-FR',{maximumFractionDigits:1})} % classé</span>`:''}</div>
+      <div class="flow-composition-grid">${items.map(item=>`<article class="flow-composition-item ${item.kind}"><span>${esc(item.label)}</span><strong>${euro(item.amount)}</strong><small class="${item.favorable?'positive':'danger'}">${item.delta>0?'+':''}${euro(item.delta)} vs mois précédent</small><p>${esc(item.detail)}</p></article>`).join('')}</div>
+      ${unknown>0?`<p class="notice">${euro(unknown)} de sorties restent à qualifier. Elles ne sont pas ajoutées artificiellement aux dépenses fixes ou variables.</p>`:''}
+      <p class="subtle">Les dépenses affichées plus haut correspondent aux fixes, variables et autres dépenses courantes. L'épargne, les transferts et les dépenses exceptionnelles restent séparés.${selectedIsCurrent?' Le mois en cours ne contient que les mouvements importés à ce jour.':''}</p>
+    </section>`;
+  }
+
   let monthRequest=0;
   async function renderMonth(){
     const request=++monthRequest,month=state.month;
@@ -341,6 +366,7 @@
           <article class="card metric metric-accent"><span>Reste pilotable</span><strong>${euro(adaptive.adaptive_pool_cents)}</strong><small>${adaptive.days_left||0} jour(s)</small></article>
         </section>
         ${monthlySpendingTrend(monthData,month)}
+        ${monthlyFlowComposition(monthData,month)}
         <section class="card explain-card">
           <div class="section-head"><div><p class="eyebrow">Calcul du restant</p><h2>Comment arrive-t-on à la fin de mois</h2></div></div>
           ${hasClosing?`<div class="formula">
