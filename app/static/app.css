@@ -481,6 +481,15 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .simulation-result-v7 span,.simulation-result-v7 strong{display:block}.simulation-result-v7 span{color:var(--muted);font-size:.7rem}.simulation-result-v7 strong{margin-top:5px;font-size:.95rem}
 @media(max-width:460px){.simulation-result-v7{grid-template-columns:1fr}}
 @media(max-width:560px){.trajectory-summary{grid-template-columns:1fr 1fr}.trajectory-summary>div:first-child{grid-column:1/-1}.trajectory-plot svg{min-height:160px}}
+.trend-delta{padding:6px 9px;border-radius:999px;background:var(--surface-raised);font-size:.72rem;font-weight:700;white-space:nowrap}
+.spending-bars{display:grid;gap:14px;margin:16px 0}
+.spending-bar-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;font-size:.76rem}
+.spending-bar-head span{color:var(--muted-strong)}
+.spending-bar-track{height:12px;overflow:hidden;border-radius:999px;background:var(--surface-raised)}
+.spending-bar-track i{display:block;height:100%;min-width:3px;border-radius:inherit;background:var(--muted)}
+.spending-bar-track i.current{background:var(--accent)}
+.spending-bar-track i.previous{background:var(--warning)}
+@media(max-width:520px){.spending-trend .section-head{align-items:flex-start;flex-direction:column}.trend-delta{white-space:normal}}
 
 
 /* V7 bank-style movements */

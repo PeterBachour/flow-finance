@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.6.0';
+  const VERSION='6.6.1';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -286,6 +286,29 @@
     }).join('')}</div>`;
   }
 
+  function monthlySpendingTrend(data,month){
+    const rows=[
+      {label:monthLabel(month),amount:data?.current?.spent_cents==null?NaN:Number(data.current.spent_cents),kind:'current'},
+      {label:'Mois précédent',amount:data?.previous?.spent_cents==null?NaN:Number(data.previous.spent_cents),kind:'previous'},
+      {label:'Moyenne 3 mois',amount:data?.average_3m?.spent_cents==null?NaN:Number(data.average_3m.spent_cents),kind:'average'},
+      {label:'Moyenne 6 mois',amount:data?.average_6m?.spent_cents==null?NaN:Number(data.average_6m.spent_cents),kind:'average'}
+    ].filter(item=>Number.isFinite(item.amount)&&item.amount>=0);
+    const maximum=Math.max(1,...rows.map(item=>item.amount));
+    const current=rows.find(item=>item.kind==='current')?.amount;
+    const previous=rows.find(item=>item.kind==='previous')?.amount;
+    const delta=Number.isFinite(current)&&Number.isFinite(previous)?current-previous:null;
+    const selectedIsCurrent=month===new Date().toISOString().slice(0,7);
+    if(!rows.length)return '<section class="card"><div class="section-head"><div><p class="eyebrow">Évolution</p><h2>Dépenses comparées</h2></div></div><div class="empty-state">Aucune donnée comparable disponible.</div></section>';
+    return `<section class="card spending-trend" aria-labelledby="spendingTrendTitle">
+      <div class="section-head"><div><p class="eyebrow">Évolution</p><h2 id="spendingTrendTitle">Dépenses comparées</h2></div>${delta==null?'':`<span class="trend-delta ${delta<=0?'positive':'danger'}">${delta>0?'+':''}${euro(delta)} vs précédent</span>`}</div>
+      <div class="spending-bars">${rows.map(item=>{
+        const width=item.amount/maximum*100;
+        return `<div class="spending-bar-row"><div class="spending-bar-head"><span>${esc(item.label)}</span><strong>${euro(item.amount)}</strong></div><div class="spending-bar-track" role="img" aria-label="${esc(item.label)} : ${euro(item.amount)}"><i class="${item.kind}" style="width:${width.toFixed(1)}%"></i></div></div>`;
+      }).join('')}</div>
+      <p class="subtle">${selectedIsCurrent?'Le mois en cours est partiel : son montant correspond uniquement aux mouvements importés à ce jour.':'Comparaison fondée sur les mouvements importés pour chaque période.'} Les transferts internes sont exclus.</p>
+    </section>`;
+  }
+
   let monthRequest=0;
   async function renderMonth(){
     const request=++monthRequest,month=state.month;
@@ -317,6 +340,7 @@
           <article class="card metric"><span>Réguliers</span><strong>${euro(recurringMonthly)}</strong><small>équivalent mensuel</small></article>
           <article class="card metric metric-accent"><span>Reste pilotable</span><strong>${euro(adaptive.adaptive_pool_cents)}</strong><small>${adaptive.days_left||0} jour(s)</small></article>
         </section>
+        ${monthlySpendingTrend(monthData,month)}
         <section class="card explain-card">
           <div class="section-head"><div><p class="eyebrow">Calcul du restant</p><h2>Comment arrive-t-on à la fin de mois</h2></div></div>
           ${hasClosing?`<div class="formula">

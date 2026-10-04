@@ -1,6 +1,16 @@
 {
   "releases": [
     {
+      "version": "6.6.1",
+      "date": "2026-10-04",
+      "title": "Flow V6.6.1 - Évolution des dépenses",
+      "highlights": [
+        "Dépenses comparées au mois précédent",
+        "Moyennes sur trois et six mois visibles",
+        "Mois en cours explicitement présenté comme partiel"
+      ]
+    },
+    {
       "version": "6.6.0",
       "date": "2026-10-04",
       "title": "Flow V6.6.0 - Trajectoire du solde",
