@@ -113,10 +113,27 @@ def analyze_continuity(probes: list[StatementProbe]) -> dict:
     }
 
 
-def apply_corpus(db: Path, account_id: int, source_dir: Path, probes: list[StatementProbe]) -> dict:
+def validate_apply_preflight(probes: list[StatementProbe], *, confirm_warnings: bool = False) -> dict:
+    continuity = analyze_continuity(probes)
     parse_errors = [probe for probe in probes if probe.parse_error]
     if parse_errors:
         raise ValueError('Corpus contains parse errors; fix them before --apply.')
+    if not continuity['can_commit']:
+        raise ValueError('Corpus preflight is blocking; fix period overlaps or balance discontinuities before --apply.')
+    if continuity['requires_confirmation'] and not confirm_warnings:
+        raise ValueError('Corpus has warning-level gaps; rerun with --confirm-warnings to apply knowingly.')
+    return continuity
+
+
+def apply_corpus(
+    db: Path,
+    account_id: int,
+    source_dir: Path,
+    probes: list[StatementProbe],
+    *,
+    confirm_warnings: bool = False,
+) -> dict:
+    validate_apply_preflight(probes, confirm_warnings=confirm_warnings)
 
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
@@ -187,6 +204,7 @@ def main() -> int:
     parser.add_argument('--db', type=Path)
     parser.add_argument('--account-id', type=int)
     parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--confirm-warnings', action='store_true')
     parser.add_argument('--json-out', type=Path)
     args = parser.parse_args()
 
@@ -213,7 +231,13 @@ def main() -> int:
             print(f'error=db not found: {db}', file=sys.stderr)
             return 2
         try:
-            payload['import'] = apply_corpus(db, args.account_id, source_dir, probes)
+            payload['import'] = apply_corpus(
+                db,
+                args.account_id,
+                source_dir,
+                probes,
+                confirm_warnings=args.confirm_warnings,
+            )
         except Exception as exc:
             print(f'error={exc}', file=sys.stderr)
             return 1

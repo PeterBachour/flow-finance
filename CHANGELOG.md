@@ -1,3 +1,8 @@
+## 6.6.7 — Application corpus gardée
+- Le mode `--apply` du corpus bloque les incohérences du preflight avant toute écriture.
+- Les trous de période exigent maintenant `--confirm-warnings`, comme dans l'interface.
+- Les tests couvrent la confirmation des gaps et le blocage des overlaps.
+
 ## 6.6.6 — Preflight corpus aligné
 - Le dry-run d'import de corpus réutilise la décision du preflight applicatif.
 - Les audits de releves exposent maintenant `status`, `can_commit`, `requires_confirmation` et les compteurs bloquants/avertissements.
