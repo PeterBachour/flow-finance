@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.5.1';
+  const VERSION='6.5.2';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -212,16 +212,16 @@
         api(`/api/recurring/status?month=${state.month}`).catch(()=>null)
       ]);
       const current=monthData.current||{},lines=adaptive.lines||[];
-      const monthClose=Number(current.projected_close_cents);
-      const monthOpening=Number(dashboard?.accounts?.reduce((sum,item)=>sum+Number(item.current_balance_cents||0),0)||0);
-      const income=Number(current.income_cents||0),spent=Number(current.spent_cents||0),net=income-spent;
-      const plannedAdjustment=Number.isFinite(monthClose)?monthClose-monthOpening-net:0;
+      const closing=monthData.closing_explanation||{};
+      const hasClosing=closing.status==='available'&&Number.isFinite(closing.closing_balance_cents);
+      const monthClose=hasClosing?closing.closing_balance_cents:null;
+      const income=Number(current.income_cents||0),spent=Number(current.spent_cents||0);
       const activeRecurring=(recurring||[]).filter(item=>Number(item.is_active)!==0&&Number(item.amount_cents)<0);
       const recurringMonthly=activeRecurring.reduce((sum,item)=>sum+monthlyEquivalent(item),0);
       const topCategories=[...lines].sort((a,b)=>Number(b.spent_cents||0)-Number(a.spent_cents||0)).slice(0,6);
       root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+`
         <section class="card month-toolbar"><button class="icon-btn" id="prevMonth" aria-label="Mois précédent">‹</button><div class="month-title"><strong>${monthLabel(state.month)}</strong><small>${state.month}</small></div><button class="icon-btn" id="nextMonth" aria-label="Mois suivant">›</button></section>
-        <section class="card month-balance month-balance-v7"><div><p class="eyebrow">Ce qui devrait rester</p><strong class="${monthClose>=0?'positive':'danger'}">${Number.isFinite(monthClose)?euro(monthClose):'Indisponible'}</strong><small class="subtle">Solde estimé à la fin du mois</small></div></section>
+        <section class="card month-balance month-balance-v7"><div><p class="eyebrow">Ce qui devrait rester</p><strong class="${monthClose>=0?'positive':'danger'}">${hasClosing?euro(monthClose):'Indisponible'}</strong><small class="subtle">Solde estimé à la fin du mois</small></div></section>
         <section class="month-flow-v7">
           <article class="card metric"><span>Revenus</span><strong>${euro(income)}</strong><small>sur le mois</small></article>
           <article class="card metric"><span>Dépenses</span><strong>${euro(spent)}</strong><small>hors transferts internes</small></article>
@@ -230,12 +230,13 @@
         </section>
         <section class="card explain-card">
           <div class="section-head"><div><p class="eyebrow">Calcul du restant</p><h2>Comment arrive-t-on à la fin de mois</h2></div></div>
-          <div class="formula">
-            <div class="formula-row"><span>Solde réel de départ</span><strong>${euro(monthOpening)}</strong></div>
-            <div class="formula-row"><span>+ Revenus - dépenses constatées</span><strong>${euro(net)}</strong></div>
-            <div class="formula-row"><span>+/- Échéances et prévisions restantes</span><strong>${euro(plannedAdjustment)}</strong></div>
-            <div class="formula-row formula-result"><span>= Solde estimé fin de mois</span><strong>${Number.isFinite(monthClose)?euro(monthClose):'—'}</strong></div>
-          </div>
+          ${hasClosing?`<div class="formula">
+            <div class="formula-row"><span>Solde de référence au ${dateLabel(closing.as_of)}</span><strong>${euro(closing.opening_balance_cents)}</strong></div>
+            <div class="formula-row"><span>+ Revenus attendus jusqu'au ${dateLabel(closing.target_date)}</span><strong>${euro(closing.expected_income_cents)}</strong></div>
+            <div class="formula-row"><span>- Échéances restantes</span><strong>${euro(-closing.expected_outflows_cents)}</strong></div>
+            <div class="formula-row"><span>- Dépenses variables estimées</span><strong>${euro(-closing.variable_spending_cents)}</strong></div>
+            <div class="formula-row formula-result"><span>= Solde estimé fin de mois</span><strong>${euro(monthClose)}</strong></div>
+          </div><p class="subtle">Projection réaliste depuis le solde de référence. Les mouvements déjà constatés ne sont pas déduits une seconde fois. Les transferts prévus affectent la trésorerie ; le coussin de sécurité n'est pas une dépense.</p><p class="subtle">Dépenses variables : ${euro(closing.assumptions?.realistic_daily_cents)} / jour, estimées sur l'historique. Cette estimation ne garantit pas le solde final. Confiance : ${esc(({confirmed:'confirmée',probable:'probable',estimated:'estimée',uncertain:'incertaine'})[closing.confidence?.level]||'à vérifier')}.</p>`:`<p class="notice">${closing.reason==='selected_month_not_current'?'La projection de fin de mois est disponible uniquement pour le mois en cours. Les revenus et dépenses ci-dessous concernent le mois sélectionné.':'Le solde de référence est absent, obsolète ou insuffisant pour calculer la fin de mois.'}</p>`}
         </section>
         ${monthlyRecurringCard(recurringStatus)}
         <section class="card">

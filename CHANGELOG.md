@@ -1,3 +1,11 @@
+## 6.5.2 — Fin de mois explicable
+
+- Calcule le solde de clôture au dernier jour du mois courant à partir de la trajectoire réaliste V6.
+- Expose le solde de référence, les revenus et échéances attendus et les dépenses variables estimées.
+- Remplace l'ajustement implicite de l'interface par les composantes du moteur, sans déduire à nouveau les mouvements constatés.
+- Préserve les montants indisponibles pour les autres mois et les soldes obsolètes : `null` n'est plus converti en zéro.
+- Le coussin de sécurité reste distinct du solde bancaire projeté.
+
 ## 6.5.1 — Détail des échéances régulières du mois
 
 - Affiche les occurrences du mois sélectionné, leurs montants prévus et les mouvements rapprochés.

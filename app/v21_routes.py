@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field
 from .db import connection
 from .financial_engine_v2 import build_decision_cockpit, category_spending, data_quality, monthly_insights
 from .monthly_finance import month_totals
+from .forecast_v6 import build_v6_daily_trajectory
+from .financial_routes import _ensure_recurring_intelligence_schema
 from .v2_migrations import ensure_v2_schema
 
 router = APIRouter(prefix='/api/v2.1', tags=['Flow V2.1'])
@@ -131,11 +133,38 @@ def cockpit():
     }
 
 
+def _month_close_explanation(conn, month: str, today: date) -> dict:
+    end = date(today.year, today.month, monthrange(today.year, today.month)[1])
+    base = {'status': 'unavailable', 'as_of': today.isoformat(), 'target_date': None,
+            'opening_balance_cents': None, 'expected_income_cents': None,
+            'expected_outflows_cents': None, 'variable_spending_cents': None,
+            'closing_balance_cents': None}
+    if month != today.strftime('%Y-%m'):
+        return {**base, 'reason': 'selected_month_not_current'}
+    base['target_date'] = end.isoformat()
+    trajectory = build_v6_daily_trajectory(conn, as_of=today, horizon_days=(end - today).days)
+    if not trajectory['availability']['available']:
+        return {**base, 'reason': trajectory['availability']['status']}
+    scenario = trajectory['scenarios']['realistic']
+    points = [point for point in scenario['timeline'] if point['date'] <= end.isoformat()]
+    if not points or points[-1]['date'] != end.isoformat():
+        return {**base, 'reason': 'month_end_not_covered'}
+    amounts = [int(event['amount_cents']) for point in points for event in point['events']]
+    return {**base, 'status': 'available', 'reason': None,
+            'opening_balance_cents': scenario['opening_balance_cents'],
+            'expected_income_cents': sum(value for value in amounts if value > 0),
+            'expected_outflows_cents': -sum(value for value in amounts if value < 0),
+            'variable_spending_cents': -sum(point['variable_delta_cents'] for point in points),
+            'closing_balance_cents': points[-1]['balance_cents'],
+            'confidence': trajectory['confidence'],
+            'method': 'realistic_v6_month_end',
+            'assumptions': trajectory['variable_spending']}
+
+
 @router.get('/months/{month}')
 def month_dashboard(month: str):
     _month_shift(month, 0)
     today = date.today()
-    current_key = today.strftime('%Y-%m')
     with connection() as conn:
         ensure_v2_schema(conn)
         current = month_totals(conn, month)
@@ -143,11 +172,12 @@ def month_dashboard(month: str):
         average_3m = _avg_months(conn, month, 3)
         average_6m = _avg_months(conn, month, 6)
         categories = category_spending(conn, month)
-        projected = None
-        if month == current_key:
-            projected = int(build_decision_cockpit(conn, today)['forecast']['closing_balance_cents'])
+        _ensure_recurring_intelligence_schema(conn)
+        explanation = _month_close_explanation(conn, month, today)
+        projected = explanation['closing_balance_cents']
     return {
         'month': month,
+        'closing_explanation': explanation,
         'current': {**current, 'projected_close_cents': projected},
         'previous': previous,
         'average_3m': average_3m,
