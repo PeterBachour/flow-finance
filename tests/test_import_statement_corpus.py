@@ -29,6 +29,9 @@ def test_contiguous_statements_are_clean():
     assert report['has_period_gap'] is False
     assert report['has_period_overlap'] is False
     assert report['has_balance_discontinuity'] is False
+    assert report['status'] == 'ready'
+    assert report['can_commit'] is True
+    assert report['requires_confirmation'] is False
 
 
 def test_gap_does_not_report_a_false_balance_break():
@@ -42,12 +45,16 @@ def test_gap_does_not_report_a_false_balance_break():
     assert report['has_period_overlap'] is False
     assert report['issues'][0] == {
         'type': 'period_gap',
+        'severity': 'warning',
         'after_file': 'september.pdf',
         'before_file': 'november.pdf',
         'missing_start': '2025-10-01',
         'missing_end': '2025-10-31',
         'missing_days': 31,
     }
+    assert report['status'] == 'warning'
+    assert report['can_commit'] is True
+    assert report['requires_confirmation'] is True
     assert len(report['issues']) == 1
 
 
@@ -59,8 +66,11 @@ def test_overlap_is_not_mistaken_for_gap():
 
     assert report['has_period_overlap'] is True
     assert report['has_period_gap'] is False
+    assert report['status'] == 'blocked'
+    assert report['can_commit'] is False
     overlap = report['issues'][0]
     assert overlap['type'] == 'period_overlap'
+    assert overlap['severity'] == 'blocking'
     assert overlap['overlap_start'] == '2024-08-30'
     assert overlap['overlap_end'] == '2024-08-30'
     assert overlap['overlap_days'] == 1
