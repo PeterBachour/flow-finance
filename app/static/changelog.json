@@ -1,6 +1,15 @@
 {
   "releases": [
     {
+      "version": "6.6.7",
+      "date": "2026-10-04",
+      "title": "Flow V6.6.7 - Application corpus gardee",
+      "highlights": [
+        "Apply corpus bloque par le preflight",
+        "Confirmation explicite requise pour les trous de periode"
+      ]
+    },
+    {
       "version": "6.6.6",
       "date": "2026-10-04",
       "title": "Flow V6.6.6 - Preflight corpus aligne",

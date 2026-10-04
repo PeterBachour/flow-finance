@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from maintenance.import_statement_corpus import StatementProbe, analyze_continuity
+import pytest
+
+from maintenance.import_statement_corpus import StatementProbe, analyze_continuity, validate_apply_preflight
 
 
 def probe(name: str, start: str, end: str, opening: int, closing: int) -> StatementProbe:
@@ -74,3 +76,27 @@ def test_overlap_is_not_mistaken_for_gap():
     assert overlap['overlap_start'] == '2024-08-30'
     assert overlap['overlap_end'] == '2024-08-30'
     assert overlap['overlap_days'] == 1
+
+
+def test_apply_preflight_requires_confirmation_for_warning_gap():
+    probes = [
+        probe('september.pdf', '2025-08-30', '2025-09-30', 346029, 259996),
+        probe('november.pdf', '2025-11-01', '2025-11-28', 256504, 251902),
+    ]
+
+    with pytest.raises(ValueError, match='confirm-warnings'):
+        validate_apply_preflight(probes)
+
+    report = validate_apply_preflight(probes, confirm_warnings=True)
+    assert report['status'] == 'warning'
+    assert report['requires_confirmation'] is True
+
+
+def test_apply_preflight_blocks_overlaps_even_with_confirmation():
+    probes = [
+        probe('august.pdf', '2024-08-01', '2024-08-30', 45, 242852),
+        probe('september.pdf', '2024-08-30', '2024-09-30', 242852, 264085),
+    ]
+
+    with pytest.raises(ValueError, match='blocking'):
+        validate_apply_preflight(probes, confirm_warnings=True)
