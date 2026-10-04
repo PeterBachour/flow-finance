@@ -180,3 +180,31 @@ def test_recurring_can_be_paused_and_reactivated(tmp_path, monkeypatch):
         reactivated = client.patch(f'/api/recurring/{recurring_id}', json={'is_active': True})
         assert reactivated.status_code == 200
         assert reactivated.json()['is_active'] == 1
+
+
+@pytest.mark.parametrize('label,status,copies', [
+    ('RESTAURANT TEST', 'confirmed', 1),
+    ('PRLV ABONNEMENT TEST', 'pending', 1),
+    ('PRLV ABONNEMENT TEST', 'confirmed', 2),
+])
+def test_recurring_payment_requires_confirmed_identity_and_unambiguous_match(tmp_path, monkeypatch, label, status, copies):
+    import app.db as db
+    from app.main import recurring_status
+
+    monkeypatch.setattr(db, 'DB_PATH', tmp_path / 'matching.db')
+    db.init_db()
+    with db.connection() as conn:
+        account = conn.execute("INSERT INTO accounts(name,current_balance_cents) VALUES('Test',100000)").lastrowid
+        conn.execute("""INSERT INTO recurring_transactions(
+            account_id,label,amount_cents,day_of_month,frequency,next_occurrence,is_active
+        ) VALUES(?,'ABONNEMENT TEST',-1999,2,'monthly','2026-10-02',1)""", (account,))
+        for _ in range(copies):
+            conn.execute("""INSERT INTO transactions(account_id,booking_date,amount_cents,label,status)
+                VALUES(?,'2026-10-02',-1999,?,?)""", (account,label,status))
+        before = [tuple(row) for row in conn.execute('SELECT * FROM transactions')]
+    result = recurring_status('2026-10')
+    assert result['summary']['paid_cents'] == 0
+    assert result['summary']['remaining_cents'] == 1999
+    assert result['items'][0]['matched_transaction_id'] is None
+    with db.connection() as conn:
+        assert [tuple(row) for row in conn.execute('SELECT * FROM transactions')] == before
