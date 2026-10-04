@@ -1,10 +1,11 @@
 (()=>{
-  const VERSION='6.5.9';
+  const VERSION='6.5.10';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
     filter:'all',
-    query:''
+    query:'',
+    category:null
   };
 
   const q=selector=>document.querySelector(selector);
@@ -229,7 +230,8 @@
       const planned=Number(item.planned_cents),remaining=Number(item.recommended_remaining_cents);
       const budget=!item.aggregate&&item.planned_cents!=null&&Number.isFinite(planned)?`<small>Budget prévu : ${euro(planned)}${planned>0&&item.spent_cents>planned?' · Dépassé de '+euro(item.spent_cents-planned):''}</small>`:'';
       const allowance=!item.aggregate&&item.recommended_remaining_cents!=null&&Number.isFinite(remaining)?`<small>Reste recommandé : ${euro(remaining)}</small>`:'';
-      return `<article class="budget-item"><div class="budget-item-head"><div><strong>${esc(item.category)}</strong><small>${percent} % des dépenses des catégories du budget</small>${budget}${allowance}</div><div class="money">${euro(item.spent_cents)}<small>dépensés</small></div></div><div class="budget-track" role="img" aria-label="Part des dépenses : ${percent} %"><i style="width:${share}%"></i></div></article>`;
+      const category=item.aggregate?'':` data-category="${esc(item.category)}" role="button" tabindex="0" aria-label="Voir les mouvements de ${esc(item.category)}"`;
+      return `<article class="budget-item budget-category-link"${category}><div class="budget-item-head"><div><strong>${esc(item.category)}</strong><small>${percent} % des dépenses des catégories du budget</small>${budget}${allowance}</div><div class="money">${euro(item.spent_cents)}<small>dépensés</small></div></div><div class="budget-track" role="img" aria-label="Part des dépenses : ${percent} %"><i style="width:${share}%"></i></div></article>`;
     }).join('')}</div>`;
   }
 
@@ -282,6 +284,7 @@
         <section class="card month-status-v7"><p class="eyebrow">Écart au budget</p><strong class="${Number(closeout.variance_cents)<0?'danger':'positive'}">${euro(closeout.variance_cents)}</strong><p class="subtle">Taux d'épargne : ${closeout.savings_rate_pct??'—'} %</p></section>`;
       q('#retryRecurringStatus')?.addEventListener('click',renderMonth);
       bindMonthToolbar();
+      root.querySelectorAll('[data-category]').forEach(card=>{const open=()=>{state.category=card.dataset.category;state.query='';state.filter='all';nav('movements');};card.addEventListener('click',open);card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open();}});});
       bindNavigation(root);
     }catch(error){if(request===monthRequest&&month===state.month)renderError(root,'Mois',error,'month');}
   }
@@ -337,12 +340,13 @@
 
   let movementRequest=0;
   async function renderMovements(){
-    const request=++movementRequest,month=state.month,query=state.query,filter=state.filter;
-    const isCurrent=()=>request===movementRequest&&month===state.month&&query===state.query&&filter===state.filter;
+    const request=++movementRequest,month=state.month,query=state.query,filter=state.filter,category=state.category;
+    const isCurrent=()=>request===movementRequest&&month===state.month&&query===state.query&&filter===state.filter&&category===state.category;
     const root=q('[data-screen="movements"]');root.innerHTML=page('Historique','Mouvements','Toutes tes opérations, sans bruit technique.')+skeleton();
     try{
       const params=new URLSearchParams({month,limit:'250'});
       if(query)params.set('q',query);
+      if(category)params.set('category',category);
       if(filter==='uncategorized')params.set('quality','uncategorized');
       const [rows,summary]=await Promise.all([
         api(`/api/v3.1/movements?${params}`),
@@ -383,6 +387,7 @@
         <section class="card movement-controls-v7">
           <div class="month-picker-controls"><button class="icon-btn" id="movementPrevMonth" aria-label="Mois précédent">‹</button><input id="movementMonth" type="month" value="${month}" aria-label="Mois des mouvements"><button class="icon-btn" id="movementNextMonth" aria-label="Mois suivant">›</button></div>
           <label class="search-field search-field-large"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input id="movementSearch" autocomplete="off" placeholder="Rechercher" value="${esc(query)}"></label>
+          ${category?`<div class="notice movement-category-filter">Catégorie : <strong>${esc(category)}</strong><button class="chip" id="clearMovementCategory" type="button">Effacer</button></div>`:''}
           <div class="chips movement-filter-v7">${[['all','Tous'],['expense','Dépenses'],['income','Revenus'],['uncategorized','À classer']].map(([key,label])=>`<button class="chip ${filter===key?'active':''}" data-filter="${key}">${label}</button>`).join('')}</div>
         </section>
         <section class="card movement-operations-v7">
@@ -393,6 +398,7 @@
       q('#movementMonth').addEventListener('change',event=>{if(event.target.value){state.month=event.target.value;renderMovements();}});
       q('#movementPrevMonth').addEventListener('click',()=>shiftMovementMonth(-1));
       q('#movementNextMonth').addEventListener('click',()=>shiftMovementMonth(1));
+      q('#clearMovementCategory')?.addEventListener('click',()=>{state.category=null;renderMovements();});
       root.querySelectorAll('[data-filter]').forEach(button=>button.addEventListener('click',()=>{state.filter=button.dataset.filter;renderMovements();}));
       root.querySelectorAll('[data-edit]').forEach(button=>button.addEventListener('click',()=>openMovement(Number(button.dataset.edit))));
     }catch(error){if(isCurrent())renderError(root,'Mouvements',error,'movements');}
