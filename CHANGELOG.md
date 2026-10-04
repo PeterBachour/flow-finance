@@ -1,3 +1,12 @@
+## 6.5.5 — Financement des objectifs lisible
+
+- La barre de progression affiche le financement actuel plutôt que le financement projeté.
+- Explicite les montants financés, cible, reste à financer, versement prévu et rythme requis.
+- Sépare la projection à l'échéance dans un détail : elle ne représente pas de l'argent déjà financé.
+- Affiche des explications adaptées aux objectifs atteints, sans échéance ou en retard.
+- Préserve les avoirs si le suivi des objectifs ou la stratégie échoue ; état indisponible explicite et réessai.
+- Aucun changement des calculs financiers ou des allocations.
+
 ## 6.5.4 — Rapprochement des charges régulières
 
 - Exige une correspondance de libellé en plus du compte, du montant et de la date pour détecter un paiement.
