@@ -1,3 +1,10 @@
+## 6.6.1 — Évolution des dépenses lisible
+
+- Compare les dépenses du mois sélectionné au mois précédent et aux moyennes sur trois et six mois.
+- Affiche l'écart au mois précédent et distingue une baisse d'une hausse.
+- Signale explicitement qu'un mois en cours reste partiel et dépend des mouvements déjà importés.
+- Maintient l'exclusion des transferts internes dans les montants comparés.
+
 ## 6.6.0 — Trajectoire du solde visible
 
 - Affiche sur l'accueil la trajectoire du solde issue du moteur V6 existant.

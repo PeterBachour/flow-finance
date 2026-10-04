@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync('app/static/v4-ui.js','utf8');
 const context={Intl,Date,URLSearchParams,FormData:class FormData{},document:{readyState:'loading',addEventListener(){},createElement(){return {set textContent(value){this.innerHTML=String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}};}}};
 vm.createContext(context);
-vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.categoryBreakdown=monthlyCategoryBreakdown; globalThis.movementSummary=movementSelectionSummary; globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.renderTrajectoryChart=trajectoryChart; globalThis.goalCard=wealthGoalCard; globalThis.renderWealthScreen=renderWealth; globalThis.renderMovementsScreen=renderMovements; globalThis.flowState=state;\n  if(document.readyState===\'loading\')'),context);
+vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.categoryBreakdown=monthlyCategoryBreakdown; globalThis.movementSummary=movementSelectionSummary; globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.renderTrajectoryChart=trajectoryChart; globalThis.renderSpendingTrend=monthlySpendingTrend; globalThis.goalCard=wealthGoalCard; globalThis.renderWealthScreen=renderWealth; globalThis.renderMovementsScreen=renderMovements; globalThis.flowState=state;\n  if(document.readyState===\'loading\')'),context);
 const render=context.renderRecurringCard;
 test('loading failure differs from an empty month and allows retry',()=>{
  const unavailable=render(null),empty=render({summary:{},items:[]});
@@ -49,6 +49,21 @@ test('month screen uses engine components instead of inferred adjustment',async(
  const html=await monthScreen({status:'available',as_of:'2026-10-04',target_date:'2026-10-31',opening_balance_cents:100000,expected_income_cents:20000,expected_outflows_cents:5000,variable_spending_cents:1000,closing_balance_cents:114000,assumptions:{realistic_daily_cents:37}});
  for(const text of ['Solde de référence','Revenus attendus','Échéances restantes','Dépenses variables estimées','ne sont pas déduits une seconde fois'])assert.ok(html.includes(text),text);
  assert.doesNotMatch(html,/Indisponible|Échéances et prévisions restantes/);
+});
+
+test('spending trend compares current, previous and averages without presenting a partial month as final',()=>{
+ const activeMonth=new Date().toISOString().slice(0,7);
+ const html=context.renderSpendingTrend({current:{spent_cents:80000},previous:{spent_cents:100000},average_3m:{spent_cents:90000},average_6m:{spent_cents:85000}},activeMonth);
+ for(const text of ['Dépenses comparées','Mois précédent','Moyenne 3 mois','Moyenne 6 mois','mouvements importés à ce jour','transferts internes sont exclus'])assert.ok(html.includes(text),text);
+ assert.match(html,/vs précédent/);
+ assert.match(html,/class="trend-delta positive"/);
+ assert.doesNotMatch(html,/NaN|undefined|Infinity/);
+});
+
+test('spending trend explains a historical comparison and tolerates missing values',()=>{
+ const html=context.renderSpendingTrend({current:{spent_cents:60000},previous:{spent_cents:null},average_3m:{spent_cents:50000}},'2026-08');
+ assert.match(html,/Comparaison fondée sur les mouvements importés/);
+ assert.doesNotMatch(html,/vs précédent|NaN|undefined|Infinity/);
 });
 
 async function homeScreen(payload){
