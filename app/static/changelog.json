@@ -1,6 +1,15 @@
 {
   "releases": [
     {
+      "version": "6.6.10",
+      "date": "2026-10-04",
+      "title": "Flow V6.6.10 - Contrat preflight complet",
+      "highlights": [
+        "missing_months expose par le preflight applicatif",
+        "CLI corpus aligne sur le contrat backend"
+      ]
+    },
+    {
       "version": "6.6.9",
       "date": "2026-10-04",
       "title": "Flow V6.6.9 - Mois manquants visibles",

@@ -6,7 +6,6 @@ import json
 import sqlite3
 import sys
 from dataclasses import asdict, dataclass
-from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -88,34 +87,6 @@ def _probe_record(probe: StatementProbe) -> StatementRecord:
     )
 
 
-def _month_iter(start: str, end: str) -> list[str]:
-    start_date = date.fromisoformat(start)
-    end_date = date.fromisoformat(end)
-    year = start_date.year
-    month = start_date.month
-    months: list[str] = []
-    while (year, month) <= (end_date.year, end_date.month):
-        months.append(f'{year:04d}-{month:02d}')
-        if month == 12:
-            year += 1
-            month = 1
-        else:
-            month += 1
-    return months
-
-
-def _missing_months(issues: list[dict]) -> list[str]:
-    months: set[str] = set()
-    for issue in issues:
-        if issue.get('type') != 'period_gap':
-            continue
-        missing_start = issue.get('missing_start')
-        missing_end = issue.get('missing_end')
-        if missing_start and missing_end:
-            months.update(_month_iter(missing_start, missing_end))
-    return sorted(months)
-
-
 def analyze_continuity(probes: list[StatementProbe]) -> dict:
     preflight = analyze_records([_probe_record(probe) for probe in probes])
     parse_errors = [
@@ -123,7 +94,6 @@ def analyze_continuity(probes: list[StatementProbe]) -> dict:
         for probe in probes if probe.parse_error
     ]
     issues = preflight['issues']
-    missing_months = _missing_months(issues)
     return {
         'file_count': len(probes),
         'parsed_statement_count': preflight['statement_count'],
@@ -136,8 +106,8 @@ def analyze_continuity(probes: list[StatementProbe]) -> dict:
         'blocking_count': preflight['blocking_count'],
         'warning_count': preflight['warning_count'],
         'duplicate_statement_count': preflight['duplicate_statement_count'],
-        'missing_months': missing_months,
-        'missing_month_count': len(missing_months),
+        'missing_months': preflight['missing_months'],
+        'missing_month_count': preflight['missing_month_count'],
         'issues': issues,
         'has_period_gap': any(issue['type'] == 'period_gap' for issue in issues),
         'has_period_overlap': any(issue['type'] == 'period_overlap' for issue in issues),

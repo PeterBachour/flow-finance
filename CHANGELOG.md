@@ -1,3 +1,8 @@
+## 6.6.10 — Contrat preflight complet
+- Le preflight applicatif expose `missing_months` et `missing_month_count`.
+- Le CLI corpus reutilise ce contrat commun au lieu d'un calcul separe.
+- Les tests verifient les mois manquants au niveau backend et UI.
+
 ## 6.6.9 — Mois manquants visibles
 - L'interface d'import affiche les mois manquants du preflight.
 - Le parcours historique V4.8 et le module d'import generique partagent le meme signal.
