@@ -490,6 +490,19 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .spending-bar-track i.current{background:var(--accent)}
 .spending-bar-track i.previous{background:var(--warning)}
 @media(max-width:520px){.spending-trend .section-head{align-items:flex-start;flex-direction:column}.trend-delta{white-space:normal}}
+.flow-composition-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}
+.flow-composition-item{position:relative;overflow:hidden;padding:14px;border:1px solid var(--line);border-radius:15px;background:var(--surface-raised)}
+.flow-composition-item::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--muted)}
+.flow-composition-item.variable::before{background:var(--teal)}
+.flow-composition-item.saving::before{background:var(--good)}
+.flow-composition-item.exceptional::before{background:var(--warn)}
+.flow-composition-item span,.flow-composition-item strong,.flow-composition-item small{display:block}
+.flow-composition-item span{color:var(--muted);font-size:.7rem;font-weight:800}
+.flow-composition-item strong{margin:7px 0 4px;font-size:1.1rem}
+.flow-composition-item small{font-size:.66rem}
+.flow-composition-item p{margin:8px 0 0;color:var(--muted);font-size:.66rem;line-height:1.45}
+@media(max-width:680px){.flow-composition-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:390px){.flow-composition-grid{grid-template-columns:1fr}}
 
 
 /* V7 bank-style movements */

@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync('app/static/v4-ui.js','utf8');
 const context={Intl,Date,URLSearchParams,FormData:class FormData{},document:{readyState:'loading',addEventListener(){},createElement(){return {set textContent(value){this.innerHTML=String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}};}}};
 vm.createContext(context);
-vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.categoryBreakdown=monthlyCategoryBreakdown; globalThis.movementSummary=movementSelectionSummary; globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.renderTrajectoryChart=trajectoryChart; globalThis.renderSpendingTrend=monthlySpendingTrend; globalThis.goalCard=wealthGoalCard; globalThis.renderWealthScreen=renderWealth; globalThis.renderMovementsScreen=renderMovements; globalThis.flowState=state;\n  if(document.readyState===\'loading\')'),context);
+vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.categoryBreakdown=monthlyCategoryBreakdown; globalThis.movementSummary=movementSelectionSummary; globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.renderTrajectoryChart=trajectoryChart; globalThis.renderSpendingTrend=monthlySpendingTrend; globalThis.renderFlowComposition=monthlyFlowComposition; globalThis.goalCard=wealthGoalCard; globalThis.renderWealthScreen=renderWealth; globalThis.renderMovementsScreen=renderMovements; globalThis.flowState=state;\n  if(document.readyState===\'loading\')'),context);
 const render=context.renderRecurringCard;
 test('loading failure differs from an empty month and allows retry',()=>{
  const unavailable=render(null),empty=render({summary:{},items:[]});
@@ -64,6 +64,23 @@ test('spending trend explains a historical comparison and tolerates missing valu
  const html=context.renderSpendingTrend({current:{spent_cents:60000},previous:{spent_cents:null},average_3m:{spent_cents:50000}},'2026-08');
  assert.match(html,/Comparaison fondée sur les mouvements importés/);
  assert.doesNotMatch(html,/vs précédent|NaN|undefined|Infinity/);
+});
+
+test('month composition separates consumption, savings and exceptional outflows',()=>{
+ const html=context.renderFlowComposition({
+  current:{fixed_cents:45000,variable_cents:30000,other_classified_cents:5000,saving_cents:12000,exceptional_cents:8000,unknown_cents:2500,semantic_coverage_pct:96.8},
+  previous:{fixed_cents:44000,variable_cents:35000,other_classified_cents:0,saving_cents:10000,exceptional_cents:0}
+ },new Date().toISOString().slice(0,7));
+ for(const text of ['Comment se répartit le mois','Dépenses fixes','Dépenses variables','Autres dépenses courantes','Épargne','Dépenses exceptionnelles','96,8 % classé','sorties restent à qualifier','ne sont pas ajoutées artificiellement','mois en cours ne contient que les mouvements importés'])assert.ok(html.includes(text),text);
+ assert.match(html,/class="positive">-5/);
+ assert.match(html,/class="flow-composition-item saving"[\s\S]*class="positive">\+/);
+ assert.doesNotMatch(html,/NaN|undefined|Infinity/);
+});
+
+test('month composition stays explicit when optional buckets are empty',()=>{
+ const html=context.renderFlowComposition({current:{fixed_cents:0,variable_cents:0,saving_cents:0,semantic_coverage_pct:100},previous:{}},'2026-08');
+ for(const text of ['Dépenses fixes','Dépenses variables','Épargne','100 % classé'])assert.ok(html.includes(text),text);
+ assert.doesNotMatch(html,/Autres dépenses courantes|Dépenses exceptionnelles|sorties restent à qualifier|NaN|undefined/);
 });
 
 async function homeScreen(payload){

@@ -1,3 +1,10 @@
+## 6.6.4 — Composition mensuelle lisible
+
+- Sépare dans l'écran Mois les dépenses fixes, variables et autres dépenses courantes.
+- Isole l'épargne et les dépenses exceptionnelles pour éviter de les confondre avec la consommation.
+- Compare chaque composante au mois précédent et affiche la couverture de classification.
+- Signale les sorties encore à qualifier sans les affecter artificiellement à une catégorie.
+
 ## 6.6.3 — Import historique contrôlé
 
 - Affiche le contrôle de continuité directement dans le parcours de fiabilisation actif.
