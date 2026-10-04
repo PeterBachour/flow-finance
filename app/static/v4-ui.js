@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.5.14';
+  const VERSION='6.6.0';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -94,6 +94,56 @@
     return `<section class="card forecast-accuracy" aria-labelledby="forecastAccuracyTitle"><div class="section-head"><div><p class="eyebrow">Fiabilité des prévisions</p><h2 id="forecastAccuracyTitle">Prévu et constaté</h2></div><span class="confidence-pill">${Number(data?.snapshot_count||0)} capture(s)</span></div><p class="subtle">Comparaison aux soldes confirmés des relevés. ${esc(detail)}</p>${hasResults?`<div class="forecast-accuracy-grid">${rows}</div><p class="accuracy-footnote">La valeur moyenne affichée indique la différence entre le solde prévu et le solde du relevé.</p>`:rows}</section>`;
   }
 
+  function trajectoryChart(data){
+    const band=Array.isArray(data?.uncertainty_band)?data.uncertainty_band:[];
+    const realistic=data?.scenarios?.realistic||{};
+    const prudent=data?.scenarios?.prudent||{};
+    const available=data?.availability?.available===true;
+    const values=band.flatMap(point=>[
+      Number(point.optimistic_cents),
+      Number(point.realistic_cents),
+      Number(point.prudent_cents)
+    ]).filter(Number.isFinite);
+    const header='<div class="section-head"><div><p class="eyebrow">Trajectoire</p><h2>Évolution prévue du solde</h2></div></div>';
+    if(!available||band.length<2||!values.length){
+      return `<section class="card trajectory-card">${header}<p class="notice" role="status">La trajectoire reste indisponible tant que le solde de référence n'est pas fiable.</p></section>`;
+    }
+    const width=720,height=250,left=22,right=18,top=18,bottom=34;
+    const minimum=Math.min(...values),maximum=Math.max(...values);
+    const padding=Math.max(1,Math.round((maximum-minimum)*.08));
+    const floor=minimum-padding,ceiling=maximum+padding,span=Math.max(1,ceiling-floor);
+    const x=index=>left+(index*(width-left-right))/Math.max(1,band.length-1);
+    const y=value=>top+((ceiling-Number(value))*(height-top-bottom))/span;
+    const path=key=>band.map((point,index)=>`${index?'L':'M'}${x(index).toFixed(1)} ${y(point[key]).toFixed(1)}`).join(' ');
+    const area=`${path('optimistic_cents')} ${[...band].reverse().map((point,index)=>`L${x(band.length-1-index).toFixed(1)} ${y(point.prudent_cents).toFixed(1)}`).join(' ')} Z`;
+    const firstDate=band[0]?.date,lastDate=band.at(-1)?.date;
+    const realisticEnd=Number(realistic.closing_balance_cents);
+    const prudentEnd=Number(prudent.closing_balance_cents);
+    const lowPoint=realistic.low_point||{};
+    const confidence=({high:'Confiance élevée',medium:'Confiance moyenne',low:'Confiance limitée'})[data?.confidence?.level||data?.variable_spending?.confidence]||'Confiance à vérifier';
+    return `<section class="card trajectory-card" aria-labelledby="trajectoryTitle">${header.replace('<h2>','<h2 id="trajectoryTitle">')}
+      <div class="trajectory-summary">
+        <div><span>Solde réaliste à l'horizon</span><strong>${euro(realisticEnd)}</strong><small>${dateLabel(lastDate)}</small></div>
+        <div><span>Scénario prudent</span><strong>${euro(prudentEnd)}</strong><small>${dateLabel(lastDate)}</small></div>
+        <div><span>Point bas réaliste</span><strong>${euro(lowPoint.balance_cents)}</strong><small>${dateLabel(lowPoint.date)}</small></div>
+      </div>
+      <div class="trajectory-plot">
+        <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Solde projeté du ${dateLabel(firstDate)} au ${dateLabel(lastDate)}">
+          <line class="trajectory-grid" x1="${left}" y1="${top}" x2="${left}" y2="${height-bottom}"></line>
+          <line class="trajectory-grid" x1="${left}" y1="${height-bottom}" x2="${width-right}" y2="${height-bottom}"></line>
+          <path class="trajectory-band" d="${area}"></path>
+          <path class="trajectory-line trajectory-line-prudent" d="${path('prudent_cents')}"></path>
+          <path class="trajectory-line trajectory-line-realistic" d="${path('realistic_cents')}"></path>
+          <circle class="trajectory-point" cx="${x(band.length-1).toFixed(1)}" cy="${y(band.at(-1).realistic_cents).toFixed(1)}" r="4"></circle>
+          <text class="trajectory-axis-label" x="${left}" y="${height-8}">${dateLabel(firstDate)}</text>
+          <text class="trajectory-axis-label" x="${width-right}" y="${height-8}" text-anchor="end">${dateLabel(lastDate)}</text>
+        </svg>
+      </div>
+      <div class="trajectory-legend" aria-label="Légende"><span><i class="realistic"></i>Réaliste</span><span><i class="prudent"></i>Prudent</span><span><i class="band"></i>Zone d'incertitude</span></div>
+      <p class="subtle">${esc(confidence)}. La zone traduit l'écart entre les scénarios engagé et prudent. Les projections restent des estimations et ne modifient aucune donnée.</p>
+    </section>`;
+  }
+
   function openSimulation(){
     const dialog=q('#editDialog'),body=q('#editBody');
     const today=new Date().toISOString().slice(0,10);
@@ -170,6 +220,7 @@
             <div class="formula-row formula-result"><span>= Résultat après réserves</span><strong>${euro(calculated)}</strong></div>
           </div><p class="subtle">Le disponible est limité à zéro si le résultat après réserves est négatif.</p>${calculated<0?`<p class="notice">Il manque ${euro(-calculated)} pour couvrir les réserves prévues.</p>`:''}`:`<p class="notice" role="status">${esc(unavailableReason)} Actualise le solde ou importe un relevé récent avant de simuler une dépense.</p>`}
         </section>
+        ${trajectoryChart(trajectory)}
         <section class="card">
           <div class="section-head"><div><p class="eyebrow">À venir</p><h2>Prochaines sorties</h2></div><button class="section-action" data-go="recurring">Voir les réguliers</button></div>
           <div class="stack">${upcoming.map(event=>`<div class="decision-row compact-decision"><div><strong>${esc(event.label||'Échéance')}</strong><small>${dateLabel(event.date)} · ${esc(event.source||event.certainty||'Prévision')}</small></div><div class="money negative">${euro(event.amount_cents)}</div></div>`).join('')||'<div class="empty-state">Aucune sortie identifiée sur l’horizon actuel.</div>'}</div>

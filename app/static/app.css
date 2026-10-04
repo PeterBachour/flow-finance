@@ -456,10 +456,31 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 @media(max-width:390px){.month-flow-v7{grid-template-columns:1fr 1fr}.action-card-v7{min-height:92px}.compact-decision{grid-template-columns:minmax(0,1fr) auto}}
 
 .hero-simulate{margin-top:15px;background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.18)}
+.trajectory-card{overflow:hidden}
+.trajectory-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+.trajectory-summary>div{padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface-raised)}
+.trajectory-summary span,.trajectory-summary strong,.trajectory-summary small{display:block}
+.trajectory-summary span,.trajectory-summary small{color:var(--muted);font-size:.7rem}
+.trajectory-summary strong{margin:5px 0;font-size:1rem}
+.trajectory-plot{width:100%;overflow:hidden;border-radius:16px;background:linear-gradient(180deg,rgba(26,112,104,.06),transparent)}
+.trajectory-plot svg{display:block;width:100%;height:auto;min-height:190px}
+.trajectory-grid{stroke:var(--line);stroke-width:1}
+.trajectory-band{fill:rgba(26,112,104,.12);stroke:none}
+.trajectory-line{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:3}
+.trajectory-line-realistic{stroke:var(--accent)}
+.trajectory-line-prudent{stroke:var(--warning)}
+.trajectory-point{fill:var(--accent);stroke:var(--surface);stroke-width:3}
+.trajectory-axis-label{fill:var(--muted);font:600 18px system-ui,sans-serif}
+.trajectory-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;color:var(--muted-strong);font-size:.72rem}
+.trajectory-legend span{display:inline-flex;align-items:center;gap:6px}
+.trajectory-legend i{display:inline-block;width:18px;height:3px;border-radius:9px;background:var(--accent)}
+.trajectory-legend i.prudent{background:var(--warning)}
+.trajectory-legend i.band{height:10px;background:rgba(26,112,104,.14)}
 .simulation-result-v7{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
 .simulation-result-v7>div{padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface-raised)}
 .simulation-result-v7 span,.simulation-result-v7 strong{display:block}.simulation-result-v7 span{color:var(--muted);font-size:.7rem}.simulation-result-v7 strong{margin-top:5px;font-size:.95rem}
 @media(max-width:460px){.simulation-result-v7{grid-template-columns:1fr}}
+@media(max-width:560px){.trajectory-summary{grid-template-columns:1fr 1fr}.trajectory-summary>div:first-child{grid-column:1/-1}.trajectory-plot svg{min-height:160px}}
 
 
 /* V7 bank-style movements */

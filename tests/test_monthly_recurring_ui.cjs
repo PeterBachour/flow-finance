@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync('app/static/v4-ui.js','utf8');
 const context={Intl,Date,URLSearchParams,FormData:class FormData{},document:{readyState:'loading',addEventListener(){},createElement(){return {set textContent(value){this.innerHTML=String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}};}}};
 vm.createContext(context);
-vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.categoryBreakdown=monthlyCategoryBreakdown; globalThis.movementSummary=movementSelectionSummary; globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.goalCard=wealthGoalCard; globalThis.renderWealthScreen=renderWealth; globalThis.renderMovementsScreen=renderMovements; globalThis.flowState=state;\n  if(document.readyState===\'loading\')'),context);
+vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.categoryBreakdown=monthlyCategoryBreakdown; globalThis.movementSummary=movementSelectionSummary; globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.renderTrajectoryChart=trajectoryChart; globalThis.goalCard=wealthGoalCard; globalThis.renderWealthScreen=renderWealth; globalThis.renderMovementsScreen=renderMovements; globalThis.flowState=state;\n  if(document.readyState===\'loading\')'),context);
 const render=context.renderRecurringCard;
 test('loading failure differs from an empty month and allows retry',()=>{
  const unavailable=render(null),empty=render({summary:{},items:[]});
@@ -72,6 +72,29 @@ test('certified components and negative result are distinct from spendable zero'
  const euro=value=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:2}).format(value/100);
  for(const amount of [-5000,-6000,-2500])assert.ok(html.includes(euro(amount)));
  assert.ok(html.includes('<div class="hero-amount">'+euro(0)+'</div>'));
+});
+
+test('trajectory chart exposes realistic, prudent and uncertainty values without hiding assumptions',()=>{
+ const html=context.renderTrajectoryChart({
+  availability:{available:true},confidence:{level:'medium'},variable_spending:{confidence:'medium'},
+  scenarios:{realistic:{closing_balance_cents:85000,low_point:{date:'2026-10-12',balance_cents:72000}},prudent:{closing_balance_cents:76000}},
+  uncertainty_band:[
+   {date:'2026-10-04',optimistic_cents:100000,realistic_cents:100000,prudent_cents:100000},
+   {date:'2026-10-12',optimistic_cents:90000,realistic_cents:72000,prudent_cents:65000},
+   {date:'2026-10-31',optimistic_cents:98000,realistic_cents:85000,prudent_cents:76000}
+  ]
+ });
+ for(const text of ['Solde réaliste à l\'horizon','Scénario prudent','Point bas réaliste','Zone d\'incertitude','Confiance moyenne','ne modifient aucune donnée'])assert.ok(html.includes(text),text);
+ assert.match(html,/<svg[^>]+role="img"/);
+ assert.match(html,/trajectory-line-realistic/);
+ assert.match(html,/trajectory-line-prudent/);
+ assert.doesNotMatch(html,/NaN|undefined/);
+});
+
+test('trajectory chart keeps an explicit unavailable state',()=>{
+ const html=context.renderTrajectoryChart({availability:{available:false},uncertainty_band:[]});
+ assert.match(html,/trajectoire reste indisponible/);
+ assert.doesNotMatch(html,/<svg/);
 });
 
 test('goal progress shows current financing instead of future contributions',()=>{
