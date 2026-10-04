@@ -1,3 +1,9 @@
+## 6.5.10 — Détail des catégories accessible
+
+- Les catégories de la page Mois ouvrent directement les mouvements correspondants.
+- Le filtre de catégorie actif est visible et peut être effacé.
+- Navigation clavier ajoutée sur les catégories.
+
 ## 6.5.9 — Accès direct aux opérations à classer
 
 - Ajoute un accès direct au filtre des mouvements non catégorisés depuis le panneau de qualité.
