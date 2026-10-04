@@ -422,7 +422,47 @@
     </article>`;
   }
 
-  async function renderWealth(){const root=q('[data-screen="wealth"]');root.innerHTML=page('Construction','Patrimoine','Voir ce qui est disponible, investi et encore dû.')+skeleton();try{const [wealth,goals,strategy]=await Promise.all([api('/api/v2.2/wealth'),api('/api/v3.3/goals-forecast?months=12'),api('/api/v3.8/strategy?months=3')]);const liquid=Math.max(0,Number(wealth.cash_cents)||0),savings=Math.max(0,Number(wealth.savings_cents)||0),investments=Math.max(0,Number(wealth.investments_cents)||0),allocationTotal=Math.max(1,liquid+savings+investments);root.innerHTML=page('Construction','Patrimoine','Voir ce qui est disponible, investi et encore dû.')+`<section class="card hero"><div class="hero-top"><span class="status-pill">Vue consolidée</span><span class="confidence-pill">au ${dateLabel(wealth.as_of)}</span></div><p class="hero-label">Patrimoine net</p><div class="hero-amount">${euro(wealth.net_worth_cents)}</div><p class="hero-copy">${esc(strategy.headline)} · surplus stratégique ${euro(strategy.strategic_surplus_cents)}</p><div class="wealth-breakdown"><div><span>Actifs</span><strong>${euro(wealth.total_assets_cents)}</strong></div><div><span>Dettes</span><strong>${euro(wealth.total_debt_cents)}</strong></div><div><span>Protégé</span><strong>${euro(strategy.protected_cents)}</strong></div></div></section><section class="card explain-card"><div class="section-head"><div><p class="eyebrow">Lecture simple</p><h2>Comment lire ce patrimoine</h2></div></div><p class="subtle">Le patrimoine net est calculé ainsi : actifs moins dettes. Les liquidités sont l’argent disponible sur les comptes ; l’épargne et les investissements construisent le patrimoine mais ne sont pas automatiquement dépensables.</p><div class="formula"><div class="formula-row"><span>Actifs</span><strong>${euro(wealth.total_assets_cents)}</strong></div><div class="formula-row"><span>- Dettes</span><strong>${euro(wealth.total_debt_cents)}</strong></div><div class="formula-row formula-result"><span>= Patrimoine net</span><strong>${euro(wealth.net_worth_cents)}</strong></div></div><p class="subtle">La somme protégée correspond aux objectifs et réserves déjà affectés. Elle est séparée de l’argent que tu peux dépenser aujourd’hui.</p></section><section class="card"><div class="section-head"><div><p class="eyebrow">Répartition financière</p><h2>Où se trouve ton argent</h2></div></div><div class="allocation-bar" aria-label="Répartition des avoirs"><i style="width:${liquid/allocationTotal*100}%"></i><i style="width:${savings/allocationTotal*100}%"></i><i style="width:${investments/allocationTotal*100}%"></i></div><div class="allocation-legend"><span>Liquidités<b>${euro(liquid)}</b></span><span>Épargne<b>${euro(savings)}</b></span><span>Investissements<b>${euro(investments)}</b></span></div></section><section class="card"><div class="section-head"><div><p class="eyebrow">Stratégie</p><h2>Ordre d’allocation</h2></div></div>${(strategy.buckets||[]).map((bucket,index)=>`<div class="decision-row"><span class="decision-icon">${index+1}</span><div><strong>${esc(bucket.label)}</strong><small>${esc(bucket.reason)}</small></div><div class="money">${euro(bucket.amount_cents)}</div></div>`).join('')||'<div class="empty-state">Aucune allocation recommandée.</div>'}<p class="subtle">${esc(strategy.method)}</p></section><section class="card"><div class="section-head"><div><p class="eyebrow">Objectifs</p><h2>Financement des objectifs</h2><p class="subtle">La progression montre le financement actuel. Les projections reposent sur les versements mensuels configurés.</p></div></div>${(goals.goals||[]).map(wealthGoalCard).join('')||'<div class="empty-state">Aucun objectif patrimonial n’est défini.</div>'}</section>`;}catch(error){renderError(root,'Patrimoine',error,'wealth');}}
+  async function renderWealth(){
+    const root=q('[data-screen="wealth"]');
+    root.innerHTML=page('Construction','Patrimoine','Voir ce qui est disponible, investi et encore dû.')+skeleton();
+    try{
+      const [wealth,goals,strategy]=await Promise.all([
+        api('/api/v2.2/wealth'),
+        api('/api/v3.3/goals-forecast?months=12').catch(()=>null),
+        api('/api/v3.8/strategy?months=3').catch(()=>null)
+      ]);
+      const liquid=Math.max(0,Number(wealth.cash_cents)||0),savings=Math.max(0,Number(wealth.savings_cents)||0),investments=Math.max(0,Number(wealth.investments_cents)||0),allocationTotal=Math.max(1,liquid+savings+investments);
+      const unavailable=label=>`<p class="notice" role="status">${label} indisponible. Les avoirs restent affichés.</p><button class="btn secondary" data-retry-wealth>Réessayer</button>`;
+      root.innerHTML=page('Construction','Patrimoine','Voir ce qui est disponible, investi et encore dû.')+`
+        <section class="card hero">
+          <div class="hero-top"><span class="status-pill">Vue consolidée</span><span class="confidence-pill">au ${dateLabel(wealth.as_of)}</span></div>
+          <p class="hero-label">Patrimoine net</p><div class="hero-amount">${euro(wealth.net_worth_cents)}</div>
+          <p class="hero-copy">Valeur des actifs moins les dettes enregistrées.</p>
+          <div class="wealth-breakdown"><div><span>Actifs</span><strong>${euro(wealth.total_assets_cents)}</strong></div><div><span>Dettes</span><strong>${euro(wealth.total_debt_cents)}</strong></div><div><span>Protégé</span><strong>${strategy?euro(strategy.protected_cents):'Indisponible'}</strong></div></div>
+        </section>
+        <section class="card explain-card">
+          <div class="section-head"><div><p class="eyebrow">Lecture simple</p><h2>Comment lire ce patrimoine</h2></div></div>
+          <p class="subtle">Le patrimoine net est calculé ainsi : actifs moins dettes. Les liquidités sont les soldes des comptes ; l'épargne et les investissements ne sont pas automatiquement dépensables.</p>
+          <div class="formula"><div class="formula-row"><span>Actifs</span><strong>${euro(wealth.total_assets_cents)}</strong></div><div class="formula-row"><span>- Dettes</span><strong>${euro(wealth.total_debt_cents)}</strong></div><div class="formula-row formula-result"><span>= Patrimoine net</span><strong>${euro(wealth.net_worth_cents)}</strong></div></div>
+          <p class="subtle">Le montant protégé est fourni par l'analyse de stratégie. Il est indisponible si cette analyse ne peut pas être chargée.</p>
+        </section>
+        <section class="card">
+          <div class="section-head"><div><p class="eyebrow">Répartition financière</p><h2>Où se trouve ton argent</h2></div></div>
+          <div class="allocation-bar" aria-label="Répartition des avoirs"><i style="width:${liquid/allocationTotal*100}%"></i><i style="width:${savings/allocationTotal*100}%"></i><i style="width:${investments/allocationTotal*100}%"></i></div>
+          <div class="allocation-legend"><span>Liquidités<b>${euro(liquid)}</b></span><span>Épargne<b>${euro(savings)}</b></span><span>Investissements<b>${euro(investments)}</b></span></div>
+        </section>
+        <section class="card">
+          <div class="section-head"><div><p class="eyebrow">Stratégie</p><h2>Ordre d'allocation</h2></div></div>
+          ${strategy?`<p class="subtle">${esc(strategy.headline)} · surplus stratégique ${euro(strategy.strategic_surplus_cents)}</p>${(strategy.buckets||[]).map((bucket,index)=>`<div class="decision-row"><span class="decision-icon">${index+1}</span><div><strong>${esc(bucket.label)}</strong><small>${esc(bucket.reason)}</small></div><div class="money">${euro(bucket.amount_cents)}</div></div>`).join('')||'<div class="empty-state">Aucune allocation recommandée.</div>'}<p class="subtle">${esc(strategy.method)}</p>`:unavailable('Analyse de stratégie')}
+        </section>
+        <section class="card">
+          <div class="section-head"><div><p class="eyebrow">Objectifs</p><h2>Financement des objectifs</h2><p class="subtle">La progression montre le financement actuel. Les projections reposent sur les versements mensuels configurés.</p></div></div>
+          ${goals?(goals.goals||[]).map(wealthGoalCard).join('')||'<div class="empty-state">Aucun objectif patrimonial défini.</div>':unavailable('Suivi des objectifs')}
+        </section>`;
+      root.querySelectorAll('[data-retry-wealth]').forEach(button=>button.addEventListener('click',renderWealth));
+    }catch(error){renderError(root,'Patrimoine',error,'wealth');}
+  }
+
 
   async function setDecision(key,status){await api(`/api/v3.6/decision-inbox/${encodeURIComponent(key)}`,{method:'PATCH',body:JSON.stringify({status})});openSystem();if(state.screen==='home')renderHome();}
   async function runRoutines(){const status=await api('/api/v3.6/routine-status');for(const routine of status.routines||[]){if(!routine.due)continue;if(routine.key==='month_open')await api(`/api/v3.6/open-month?month=${encodeURIComponent(routine.period)}`,{method:'POST'});if(routine.key==='month_close')await api(`/api/v3.6/close-month?month=${encodeURIComponent(routine.period)}`,{method:'POST'});if(routine.key==='weekly_review')await api('/api/v3.6/weekly-review',{method:'POST'});}await api('/api/v3.6/reconcile',{method:'POST'});openSystem();if(state.screen==='home')renderHome();}

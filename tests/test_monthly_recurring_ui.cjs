@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync('app/static/v4-ui.js','utf8');
 const context={Intl,Date,FormData:class FormData{},document:{readyState:'loading',addEventListener(){},createElement(){return {set textContent(value){this.innerHTML=String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}};}}};
 vm.createContext(context);
-vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.goalCard=wealthGoalCard;\n  if(document.readyState===\'loading\')'),context);
+vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.goalCard=wealthGoalCard; globalThis.renderWealthScreen=renderWealth;\n  if(document.readyState===\'loading\')'),context);
 const render=context.renderRecurringCard;
 test('loading failure differs from an empty month and allows retry',()=>{
  const unavailable=render(null),empty=render({summary:{},items:[]});
@@ -88,4 +88,24 @@ test('goals without a deadline, achieved goals and late goals explain their stat
  assert.doesNotMatch(noDate,/Projection à l/);
  assert.match(context.goalCard({...base,status:'achieved',required_monthly_cents:null}),/Objectif déjà financé/);
  assert.match(context.goalCard({...base,status:'late',required_monthly_cents:10000,months_remaining:0}),/Échéance dépassée/);
+});
+
+async function wealthScreen(failures=[]){
+ const root={innerHTML:'',querySelectorAll(){return [];},querySelector(){return {addEventListener(){}};}};
+ context.document.querySelector=()=>root;
+ context.fetch=async url=>({ok:!failures.includes(url),status:200,text:async()=> 'Service unavailable',json:async()=> url==='/api/v2.2/wealth'?{net_worth_cents:123456,total_assets_cents:133456,total_debt_cents:10000,cash_cents:100000,savings_cents:33456,as_of:'2026-10-04'}:url.includes('goals-forecast')?{goals:[]}:{buckets:[],protected_cents:20000}});
+ await context.renderWealthScreen();return root.innerHTML;
+}
+test('optional wealth failures preserve net worth and distinguish unknown from empty',async()=>{
+ const html=await wealthScreen(['/api/v3.3/goals-forecast?months=12','/api/v3.8/strategy?months=3']);
+ assert.match(html,/Patrimoine net/);
+ assert.match(html,/Suivi des objectifs indisponible/);
+ assert.match(html,/Analyse de stratégie indisponible/);
+ assert.match(html,/<span>Protégé<\/span><strong>Indisponible/);
+ assert.doesNotMatch(html,/Aucun objectif patrimonial|Aucune allocation recommandée/);
+ assert.match(html,/data-retry-wealth/);
+});
+test('successful empty goals stay empty and core wealth errors remain visible',async()=>{
+ const empty=await wealthScreen();assert.match(empty,/Aucun objectif patrimonial/);assert.doesNotMatch(empty,/Suivi des objectifs indisponible/);
+ const failed=await wealthScreen(['/api/v2.2/wealth']);assert.match(failed,/Service unavailable/);assert.doesNotMatch(failed,/Patrimoine net/);
 });
