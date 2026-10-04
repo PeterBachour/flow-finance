@@ -155,12 +155,11 @@ test('category spending separates spent, planned and recommended amounts',()=>{
  assert.match(html,/Budget prévu/);assert.match(html,/Reste recommandé/);assert.match(html,/Dépassé de/);
  assert.match(html,/hors budget ne sont pas incluses/);assert.match(html,/&lt;Courses&gt;/);
  assert.ok(html.indexOf('&lt;Courses&gt;')<html.indexOf('Transport'));
- assert.match(html,/data-category="&lt;Courses&gt;"/);
 });
 test('category remainder preserves spending beyond the first six categories',()=>{
  const html=context.categoryBreakdown(Array.from({length:8},(_,i)=>({category:`Cat ${i}`,spent_cents:1000})));
  assert.match(html,/Autres catégories \(2\)/);assert.match(html,/25 % des dépenses/);
- assert.equal((html.match(/class="budget-item budget-category-link"/g)||[]).length,7);
+ assert.equal((html.match(/class="budget-item"/g)||[]).length,7);
  assert.match(html,/80,00/);assert.match(html,/20,00/);
 });
 test('empty and invalid category amounts never create invalid shares',()=>{

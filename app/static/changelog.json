@@ -1,6 +1,16 @@
 {
   "releases": [
     {
+      "version": "6.5.11",
+      "date": "2026-10-04",
+      "title": "Flow V6.5.11 - Groupes de libellés prêts à classer",
+      "highlights": [
+        "Groupes de libellés récurrents visibles dans le panneau qualité",
+        "Ouverture du traitement groupé avec le motif prérempli",
+        "Échec de l’analyse des suggestions isolé du parcours Mouvements"
+      ]
+    },
+    {
       "version": "6.5.10",
       "date": "2026-10-04",
       "title": "Flow V6.5.10 - Détail des catégories accessible",
