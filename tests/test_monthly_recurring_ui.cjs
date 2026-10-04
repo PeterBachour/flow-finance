@@ -128,3 +128,23 @@ for(const screen of ['month','movements']){
   resolveOld();await old;assert.equal(root.innerHTML,current);
  });
 }
+
+test('month picker remains visible during loading and supports a direct jump',async()=>{
+ const root={innerHTML:'',querySelectorAll(){return [];}};
+ const handlers={};
+ context.document.querySelector=selector=>selector.startsWith('[data-screen=')?root:{addEventListener(type,handler){handlers[selector+type]=handler;}};
+ let resolve;
+ const gate=new Promise(r=>{resolve=r;});
+ let hold=true;
+ context.fetch=async url=>{
+  if(hold&&url.includes('/api/v2.1/months/'))await gate;
+  return {ok:true,status:200,json:async()=>url==='/api/recurring'?[]:url.includes('/months/')?{current:{},closing_explanation:{status:'unavailable',reason:'selected_month_not_current'}}:{}};
+ };
+ context.flowState.month='2026-10';const pending=context.renderMonthScreen();
+ assert.match(root.innerHTML,/id="monthPicker"/);assert.match(root.innerHTML,/id="prevMonth"/);assert.match(root.innerHTML,/Chargement/);
+ hold=false;
+ await handlers['#monthPickerchange']({target:{value:'2025-01'}});
+ assert.equal(context.flowState.month,'2025-01');assert.match(root.innerHTML,/janvier 2025/);
+ resolve();await pending;assert.match(root.innerHTML,/janvier 2025/);
+ await handlers['#monthPickerchange']({target:{value:''}});assert.equal(context.flowState.month,'2025-01');
+});

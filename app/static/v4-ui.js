@@ -203,10 +203,25 @@
     </section>`;
   }
 
+  function monthToolbar(month){
+    return `<section class="card month-toolbar"><button class="icon-btn" id="prevMonth" aria-label="Mois précédent">‹</button><div class="month-title"><strong>${monthLabel(month)}</strong><input class="field" id="monthPicker" type="month" value="${month}" aria-label="Mois à consulter"></div><button class="icon-btn" id="nextMonth" aria-label="Mois suivant">›</button></section>`;
+  }
+  function bindMonthToolbar(){
+    q('#prevMonth').addEventListener('click',()=>shiftMonth(-1));
+    q('#nextMonth').addEventListener('click',()=>shiftMonth(1));
+    q('#monthPicker').addEventListener('change',event=>{
+      const month=event.target.value;
+      if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))return;
+      state.month=month;
+      return renderMonth();
+    });
+  }
+
   let monthRequest=0;
   async function renderMonth(){
     const request=++monthRequest,month=state.month;
-    const root=q('[data-screen="month"]');root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+skeleton();
+    const root=q('[data-screen="month"]');root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+monthToolbar(month)+skeleton();
+    bindMonthToolbar();
     try{
       const [monthData,adaptive,closeout,dashboard,recurring,recurringStatus]=await Promise.all([
         api(`/api/v2.1/months/${month}`),
@@ -226,7 +241,7 @@
       const recurringMonthly=activeRecurring.reduce((sum,item)=>sum+monthlyEquivalent(item),0);
       const topCategories=[...lines].sort((a,b)=>Number(b.spent_cents||0)-Number(a.spent_cents||0)).slice(0,6);
       root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+`
-        <section class="card month-toolbar"><button class="icon-btn" id="prevMonth" aria-label="Mois précédent">‹</button><div class="month-title"><strong>${monthLabel(month)}</strong><small>${month}</small></div><button class="icon-btn" id="nextMonth" aria-label="Mois suivant">›</button></section>
+        ${monthToolbar(month)}
         <section class="card month-balance month-balance-v7"><div><p class="eyebrow">Ce qui devrait rester</p><strong class="${monthClose>=0?'positive':'danger'}">${hasClosing?euro(monthClose):'Indisponible'}</strong><small class="subtle">Solde estimé à la fin du mois</small></div></section>
         <section class="month-flow-v7">
           <article class="card metric"><span>Revenus</span><strong>${euro(income)}</strong><small>sur le mois</small></article>
@@ -251,8 +266,7 @@
         </section>
         <section class="card month-status-v7"><p class="eyebrow">Écart au budget</p><strong class="${Number(closeout.variance_cents)<0?'danger':'positive'}">${euro(closeout.variance_cents)}</strong><p class="subtle">Taux d'épargne : ${closeout.savings_rate_pct??'—'} %</p></section>`;
       q('#retryRecurringStatus')?.addEventListener('click',renderMonth);
-      q('#prevMonth').addEventListener('click',()=>shiftMonth(-1));
-      q('#nextMonth').addEventListener('click',()=>shiftMonth(1));
+      bindMonthToolbar();
       bindNavigation(root);
     }catch(error){if(request===monthRequest&&month===state.month)renderError(root,'Mois',error,'month');}
   }
