@@ -1,3 +1,9 @@
+## 6.5.8 — Sélection des mouvements expliquée
+
+- Relie les dépenses, revenus et le solde net aux mouvements réellement affichés.
+- Signale les transferts internes et exclusions hors calcul.
+- Distingue le résumé filtré du nombre de mouvements à classer sur le mois.
+
 ## 6.5.7 — Dépenses par catégorie lisibles
 
 - Affiche les dépenses et leur part dans les catégories du budget, avec périmètre explicite.
