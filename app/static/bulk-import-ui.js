@@ -58,7 +58,8 @@
       ?(preflight.requires_confirmation?'Continuité à confirmer':'Continuité des relevés validée')
       :'Validation bloquée';
     const issues=(preflight.issues||[]).map(issue=>`<li><strong>${issue.severity==='blocking'?'Bloquant':'Attention'}</strong> · ${escBulk(preflightLabel(issue))}</li>`).join('');
-    return `<section class="bulk-doc ${tone}" aria-live="polite"><div class="bulk-doc-main"><span class="bulk-type">Contrôle de continuité</span><strong>${title}</strong><small>${preflight.statement_count||0} relevé(s) · ${preflight.coverage_start||'début inconnu'} au ${preflight.coverage_end||'fin inconnue'}</small>${issues?`<ul class="bulk-warning">${issues}</ul>`:''}</div></section>`;
+    const missing=(preflight.missing_months||[]).length?`<small>Mois manquants : ${(preflight.missing_months||[]).map(escBulk).join(', ')}</small>`:'';
+    return `<section class="bulk-doc ${tone}" aria-live="polite"><div class="bulk-doc-main"><span class="bulk-type">Contrôle de continuité</span><strong>${title}</strong><small>${preflight.statement_count||0} relevé(s) · ${preflight.coverage_start||'début inconnu'} au ${preflight.coverage_end||'fin inconnue'}</small>${missing}${issues?`<ul class="bulk-warning">${issues}</ul>`:''}</div></section>`;
   }
 
   function renderBatch(data){
