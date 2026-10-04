@@ -1,3 +1,8 @@
+## 6.5.9 — Accès direct aux opérations à classer
+
+- Ajoute un accès direct au filtre des mouvements non catégorisés depuis le panneau de qualité.
+- Conserve la prévisualisation et la confirmation avant toute catégorisation groupée.
+
 ## 6.5.8 — Sélection des mouvements expliquée
 
 - Relie les dépenses, revenus et le solde net aux mouvements réellement affichés.
