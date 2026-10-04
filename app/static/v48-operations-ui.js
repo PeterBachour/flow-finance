@@ -1,9 +1,11 @@
 (()=>{
   const ID='v48QualityWorkbench';
   let busy=false;
+  let activeHistoryBatch=null;
+  let lastHistoryQuality=null;
   const euro=c=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:2}).format((Number(c)||0)/100);
   const esc=v=>{const d=document.createElement('div');d.textContent=v??'';return d.innerHTML.replaceAll('"','&quot;').replaceAll("'",'&#39;');};
-  const api=async(url,options={})=>{const r=await fetch(url,{cache:'no-store',headers:{'Content-Type':'application/json',...(options.headers||{})},...options});if(!r.ok)throw new Error((await r.text())||`HTTP ${r.status}`);return r.json();};
+  const api=async(url,options={})=>{const headers=options.body instanceof FormData?{}:{'Content-Type':'application/json'};const r=await fetch(url,{cache:'no-store',...options,headers:{...headers,...(options.headers||{})}});if(!r.ok)throw new Error((await r.text())||`HTTP ${r.status}`);return r.json();};
 
   function dialog(){return document.getElementById('editDialog');}
   function body(){return document.getElementById('editBody');}
@@ -53,9 +55,71 @@
     openRecurring();refresh();
   }
 
+  const priorityLabel=value=>({critical:'Critique',high:'Haute',medium:'Moyenne',low:'Faible'})[value]||'À vérifier';
+
+  function openHistoryQuality(){
+    const d=dialog(),b=body(),data=lastHistoryQuality;if(!d||!b||!data)return;
+    d.showModal();
+    const rows=(data.actions||[]).map((action,index)=>`<article class="v48-history-action"><span class="v48-history-rank">${index+1}</span><div><div class="v48-history-title"><strong>${esc(action.title)}</strong><span class="chip ${action.priority==='critical'||action.priority==='high'?'warning':''}">${esc(priorityLabel(action.priority))}</span></div><p>${esc(action.detail)}</p><small>Preuve : ${esc(action.evidence||'Indisponible')}</small>${action.expected_document?`<small>Document attendu : ${esc(action.expected_document)}</small>`:''}<small>${esc(action.impact)}</small></div></article>`).join('');
+    const canImport=(data.actions||[]).some(action=>action.target==='bulk_import');
+    b.innerHTML=`<div class="stack"><p class="eyebrow">Historique</p><h3>Plan de fiabilisation</h3><p class="subtle">${data.open_count||0} action(s), dont ${data.blocking_count||0} bloquante(s). Ordre calculé depuis la couverture documentaire. Aucune correction n'est exécutée automatiquement.</p><div class="v48-history-summary"><div><span>Score</span><strong>${data.score??'—'}/100</strong></div><div><span>Critiques</span><strong>${data.counts?.critical||0}</strong></div><div><span>Hautes</span><strong>${data.counts?.high||0}</strong></div><div><span>Autres</span><strong>${(data.counts?.medium||0)+(data.counts?.low||0)}</strong></div></div><div class="v48-history-list">${rows||'<div class="empty-state">Aucune action historique prioritaire.</div>'}</div>${canImport?'<button class="btn primary" id="v48HistoryImport">Analyser les documents manquants</button>':''}<p class="subtle">Lecture seule jusqu'à la prévisualisation et à la validation explicite d'un lot.</p></div>`;
+    document.getElementById('v48HistoryImport')?.addEventListener('click',openHistoryImport);
+  }
+
+  async function openHistoryImport(){
+    const b=body();if(!b)return;b.innerHTML='<div class="skeleton tall"></div>';
+    try{
+      const accounts=await api('/api/accounts'),preferred=accounts.filter(account=>account.kind==='checking'),choices=preferred.length?preferred:accounts;
+      b.innerHTML=`<form id="v48HistoryImportForm" class="stack"><p class="eyebrow">Import historique</p><h3>Analyser les documents manquants</h3><p class="subtle">Les PDF et CSV restent en staging. Rien n'est écrit avant la validation explicite du lot.</p><label class="form-label">Compte<select class="field" name="account_id" required>${choices.map(account=>`<option value="${account.id}">${esc(account.name)}</option>`).join('')}</select></label><label class="form-label">Documents<input class="field" name="files" type="file" accept=".pdf,.csv,application/pdf,text/csv" multiple required></label><button class="btn primary">Analyser le lot</button><div id="v48HistoryImportStatus" class="notice">Aucune écriture avant validation.</div><div id="v48HistoryImportReview"></div></form>`;
+      document.getElementById('v48HistoryImportForm')?.addEventListener('submit',analyzeHistoryImport);
+    }catch(error){b.innerHTML=`<div class="notice">Import indisponible : ${esc(error.message)}</div>`;}
+  }
+
+  async function analyzeHistoryImport(event){
+    event.preventDefault();const form=event.currentTarget,status=document.getElementById('v48HistoryImportStatus'),review=document.getElementById('v48HistoryImportReview');
+    const files=[...form.elements.files.files];if(!files.length)return;
+    const payload=new FormData();payload.append('account_id',form.elements.account_id.value);files.forEach(file=>payload.append('files',file));
+    status.textContent=`Analyse de ${files.length} fichier(s)…`;review.innerHTML='<div class="skeleton"></div>';
+    try{const data=await api('/api/imports/bulk/analyze',{method:'POST',body:payload});activeHistoryBatch=data.batch_id;renderHistoryBatch(data);status.textContent='Analyse terminée. Vérifie les alertes avant validation.';}catch(error){status.textContent=`Analyse impossible : ${error.message}`;review.innerHTML='';}
+  }
+
+  function renderHistoryBatch(data){
+    const review=document.getElementById('v48HistoryImportReview');if(!review)return;
+    const documents=data.documents||[];
+    review.innerHTML=`<div class="v48-history-documents">${documents.map(document=>`<div class="v48-history-document"><div><strong>${esc(document.filename)}</strong><small>${esc(document.period||'Période non détectée')}${document.warning?` · ${esc(document.warning)}`:''}</small></div><span class="chip ${document.warning?'warning':'active'}">${esc(document.document_type||'inconnu')}</span></div>`).join('')}</div><div class="toolbar"><button class="btn secondary" type="button" id="v48HistoryDiscard">Abandonner</button><button class="btn primary" type="button" id="v48HistoryCommit">Valider le lot</button></div>`;
+    document.getElementById('v48HistoryDiscard')?.addEventListener('click',discardHistoryBatch);
+    document.getElementById('v48HistoryCommit')?.addEventListener('click',commitHistoryBatch);
+  }
+
+  async function commitHistoryBatch(){
+    if(!activeHistoryBatch)return;const status=document.getElementById('v48HistoryImportStatus');
+    try{const result=await api(`/api/imports/bulk/${activeHistoryBatch}/commit`,{method:'POST'});status.textContent=`Import terminé : ${result.statements||0} relevé(s), ${result.payrolls||0} fiche(s), ${result.transactions||0} mouvement(s).`;activeHistoryBatch=null;setTimeout(()=>{dialog()?.close();refresh();},900);}catch(error){status.textContent=`Validation impossible : ${error.message}`;}
+  }
+
+  async function discardHistoryBatch(){
+    if(!activeHistoryBatch)return;const status=document.getElementById('v48HistoryImportStatus');
+    try{await api(`/api/imports/bulk/${activeHistoryBatch}`,{method:'DELETE'});activeHistoryBatch=null;status.textContent='Lot abandonné. Aucune donnée importée.';document.getElementById('v48HistoryImportReview').innerHTML='';}catch(error){status.textContent=`Abandon impossible : ${error.message}`;}
+  }
+
   async function refresh(){
     if(busy)return;const root=document.querySelector('[data-screen="movements"]');if(!root||!root.classList.contains('active'))return;const toolbar=root.querySelector('.movement-controls-v7');if(!toolbar)return;
-    busy=true;try{const results=await Promise.allSettled([api('/api/v4.8/quality-workbench'),api('/api/v4.8/recurring-review'),api('/api/v3.7/data-intelligence?limit=250')]);const quality=results[0].status==='fulfilled'?results[0].value:{uncategorized:'?',unmatched_transfers:'?'};const recurring=results[1].status==='fulfilled'?results[1].value:{count:'?'};const suggestions=(results[2].status==='fulfilled'?(results[2].value.merchant_suggestions||[]):[]).filter(item=>!item.confirmed).slice(0,3);if(!toolbar.isConnected||!root.classList.contains('active'))return;document.getElementById(ID)?.remove();toolbar.insertAdjacentHTML('afterend',`<section id="${ID}" class="v48-workbench"><div class="v48-quality-summary"><div><strong>Qualité des données</strong><small>${quality.uncategorized} à catégoriser · ${quality.unmatched_transfers} transfert(s) non apparié(s) · ${recurring.count} récurrence(s) à valider</small></div><span>${results[0].status==='fulfilled'&&results[1].status==='fulfilled'?quality.uncategorized+quality.unmatched_transfers+recurring.count:'Indisponible'}</span></div>${suggestions.length?`<div class="v48-merchant-suggestions"><small>Groupes repérés</small>${suggestions.map(item=>`<button type="button" class="chip" data-v48-pattern="${esc(item.normalized_key)}" data-v48-category="${esc(item.suggested_category||'')}">${esc(item.canonical_name)} · ${item.occurrences}${item.suggested_category?` · ${esc(item.suggested_category)}`:''}</button>`).join('')}</div>`:''}<div class="v48-workbench-actions"><button class="btn secondary" id="v48UncategorizedBtn">Afficher à classer</button><button class="btn secondary" id="v48BulkBtn">Catégoriser en masse</button><button class="btn secondary" id="v48RecurringBtn">Revoir les récurrences</button></div></section>`);document.getElementById('v48UncategorizedBtn')?.addEventListener('click',()=>root.querySelector('[data-filter="uncategorized"]')?.click());document.getElementById('v48BulkBtn')?.addEventListener('click',()=>openBulk());document.getElementById('v48RecurringBtn')?.addEventListener('click',openRecurring);root.querySelectorAll('[data-v48-pattern]').forEach(button=>button.addEventListener('click',()=>openBulk(button.dataset.v48Pattern,button.dataset.v48Category)));}catch(_){/* keep movements usable */}finally{busy=false;if(!toolbar.isConnected)queueMicrotask(refresh);}
+    busy=true;
+    try{
+      const results=await Promise.allSettled([api('/api/v4.8/quality-workbench'),api('/api/v4.8/recurring-review'),api('/api/v3.7/data-intelligence?limit=250'),api('/api/v5.7/data-quality-actions?months=24')]);
+      const quality=results[0].status==='fulfilled'?results[0].value:{uncategorized:'?',unmatched_transfers:'?'};
+      const recurring=results[1].status==='fulfilled'?results[1].value:{count:'?'};
+      const suggestions=(results[2].status==='fulfilled'?(results[2].value.merchant_suggestions||[]):[]).filter(item=>!item.confirmed).slice(0,3);
+      lastHistoryQuality=results[3].status==='fulfilled'?results[3].value:null;
+      if(!toolbar.isConnected||!root.classList.contains('active'))return;
+      document.getElementById(ID)?.remove();
+      toolbar.insertAdjacentHTML('afterend',`<section id="${ID}" class="v48-workbench"><div class="v48-quality-summary"><div><strong>Qualité des données</strong><small>${quality.uncategorized} à catégoriser · ${quality.unmatched_transfers} transfert(s) non apparié(s) · ${recurring.count} récurrence(s) à valider · ${lastHistoryQuality?.open_count??'?'} action(s) historique(s)</small></div><span>${results[0].status==='fulfilled'&&results[1].status==='fulfilled'?quality.uncategorized+quality.unmatched_transfers+recurring.count:'Indisponible'}</span></div>${suggestions.length?`<div class="v48-merchant-suggestions"><small>Groupes repérés</small>${suggestions.map(item=>`<button type="button" class="chip" data-v48-pattern="${esc(item.normalized_key)}" data-v48-category="${esc(item.suggested_category||'')}">${esc(item.canonical_name)} · ${item.occurrences}${item.suggested_category?` · ${esc(item.suggested_category)}`:''}</button>`).join('')}</div>`:''}<div class="v48-workbench-actions"><button class="btn secondary" id="v48UncategorizedBtn">Afficher à classer</button><button class="btn secondary" id="v48BulkBtn">Catégoriser en masse</button><button class="btn secondary" id="v48RecurringBtn">Revoir les récurrences</button><button class="btn secondary" id="v48HistoryBtn" ${lastHistoryQuality?'':'disabled'}>Fiabiliser l'historique${lastHistoryQuality?` (${lastHistoryQuality.open_count||0})`:''}</button></div></section>`);
+      document.getElementById('v48UncategorizedBtn')?.addEventListener('click',()=>root.querySelector('[data-filter="uncategorized"]')?.click());
+      document.getElementById('v48BulkBtn')?.addEventListener('click',()=>openBulk());
+      document.getElementById('v48RecurringBtn')?.addEventListener('click',openRecurring);
+      document.getElementById('v48HistoryBtn')?.addEventListener('click',openHistoryQuality);
+      root.querySelectorAll('[data-v48-pattern]').forEach(button=>button.addEventListener('click',()=>openBulk(button.dataset.v48Pattern,button.dataset.v48Category)));
+    }catch(_){/* keep movements usable */}
+    finally{busy=false;if(!toolbar.isConnected)queueMicrotask(refresh);}
   }
 
   const observer=new MutationObserver(records=>{if(records.some(record=>[...record.addedNodes,...record.removedNodes].some(node=>node.id!==ID)))queueMicrotask(refresh);});

@@ -1,3 +1,10 @@
+## 6.6.2 — Plan de fiabilisation accessible
+
+- Raccorde le moteur d'actions qualité V5.7 à l'écran Mouvements réellement chargé.
+- Affiche les actions historiques par priorité avec preuve, impact et document attendu.
+- Permet d'analyser les relevés et fiches de paie manquants en staging avant validation explicite.
+- Conserve Mouvements utilisable lorsque le diagnostic historique est indisponible.
+
 ## 6.6.1 — Évolution des dépenses lisible
 
 - Compare les dépenses du mois sélectionné au mois précédent et aux moyennes sur trois et six mois.
