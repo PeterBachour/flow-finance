@@ -1,3 +1,11 @@
+## 6.5.1 — Détail des échéances régulières du mois
+
+- Affiche les occurrences du mois sélectionné, leurs montants prévus et les mouvements rapprochés.
+- Distingue prévu, rapproché et restant attendu, sans assimiler l'équivalent mensuel aux échéances réelles.
+- Signale les échéances passées sans paiement détecté comme à vérifier, sans conclure à un impayé.
+- Affiche un état indisponible et une action de réessai lorsque le suivi ne peut pas être chargé.
+- Lecture seule : aucun changement des transactions ou des calculs de rapprochement.
+
 ## 6.5.0 — Fondation V7 : dépenses régulières
 
 - Navigation principale simplifiée à quatre entrées : Accueil, Mois, Mouvements et Patrimoine.

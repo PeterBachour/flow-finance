@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.5.0';
+  const VERSION='6.5.1';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -181,6 +181,25 @@
     }catch(error){renderError(root,'Accueil',error,'home');}
   }
 
+  function monthlyRecurringCard(data){
+    const header='<div class="section-head"><div><p class="eyebrow">Dépenses régulières</p><h2>Échéances du mois</h2></div><button class="btn secondary" data-go="recurring">Gérer</button></div>';
+    if(!data)return `<section class="card">${header}<p class="notice" role="status">Suivi indisponible. Les paiements et le restant ne peuvent pas être vérifiés.</p><button class="btn secondary" id="retryRecurringStatus">Réessayer</button></section>`;
+    const summary=data.summary||{},items=data.items||[];
+    if(!items.length)return `<section class="card">${header}<p class="empty-state">Aucune échéance régulière prévue pour ce mois.</p></section>`;
+    const labels={paid:'Paiement détecté',upcoming:'À venir',overdue:'À vérifier'};
+    const rows=items.map(item=>`<article class="monthly-recurring-row"><div class="monthly-recurring-main"><strong>${esc(item.label)}</strong><small>Échéance : ${dateLabel(item.due_date)}${item.matched_booking_date?' · Mouvement : '+dateLabel(item.matched_booking_date):''}</small></div><div class="monthly-recurring-amount"><strong>${euro(Math.abs(Number(item.amount_cents)||0))}</strong><span class="monthly-recurring-status" data-status="${esc(item.status)}">${labels[item.status]||'À vérifier'}</span></div></article>`).join('');
+    return `<section class="card">${header}
+      <div class="monthly-recurring-totals">
+        <div><span>Prévu ce mois</span><strong>${euro(summary.expected_cents)}</strong></div>
+        <div><span>Rapproché</span><strong>${euro(summary.paid_cents)}</strong></div>
+        <div><span>Restant attendu</span><strong>${euro(summary.remaining_cents)}</strong></div>
+      </div>
+      ${Number(summary.overdue_cents)>0?`<p class="notice">${euro(summary.overdue_cents)} d'échéances passées sans paiement détecté, inclus dans le restant attendu.</p>`:''}
+      <p class="subtle">Montants prévus des échéances du mois, distincts de l'équivalent mensuel. Le rapprochement est automatique et estimatif. Une échéance passée sans mouvement détecté reste à vérifier, notamment si les imports sont incomplets.</p>
+      <div class="monthly-recurring-list">${rows}</div>
+    </section>`;
+  }
+
   async function renderMonth(){
     const root=q('[data-screen="month"]');root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+skeleton();
     try{
@@ -190,7 +209,7 @@
         api(`/api/v3.5/closeout?month=${state.month}`),
         api('/api/dashboard'),
         api('/api/recurring'),
-        api(`/api/recurring/status?month=${state.month}`).catch(()=>({summary:{},items:[]}))
+        api(`/api/recurring/status?month=${state.month}`).catch(()=>null)
       ]);
       const current=monthData.current||{},lines=adaptive.lines||[];
       const monthClose=Number(current.projected_close_cents);
@@ -218,15 +237,13 @@
             <div class="formula-row formula-result"><span>= Solde estimé fin de mois</span><strong>${Number.isFinite(monthClose)?euro(monthClose):'—'}</strong></div>
           </div>
         </section>
-        <section class="card recurring-entry recurring-entry-v7">
-          <div><p class="eyebrow">Dépenses régulières</p><h2>${euro(recurringMonthly)} / mois</h2><p class="subtle">${activeRecurring.length} charge(s) active(s). ${recurringStatus?.summary?.paid_count||0} payée(s) · ${recurringStatus?.summary?.remaining_count||0} restante(s) ce mois.</p></div>
-          <button class="btn secondary" data-go="recurring">Gérer</button>
-        </section>
+        ${monthlyRecurringCard(recurringStatus)}
         <section class="card">
           <div class="section-head"><div><p class="eyebrow">Où part l'argent</p><h2>Principales catégories</h2></div></div>
           <div class="budget-list">${topCategories.map(item=>{const spentValue=Number(item.spent_cents)||0,planned=Math.max(0,Number(item.planned_cents)||0),ratio=planned?Math.min(100,Math.round(spentValue/planned*100)):0;return `<article class="budget-item"><div class="budget-item-head"><div><strong>${esc(item.category)}</strong><small>${euro(spentValue)} dépensés${planned?' sur '+euro(planned):''}</small></div><div class="money">${euro(item.recommended_remaining_cents)}</div></div><div class="budget-track ${ratio>90?'warning':''}"><i style="width:${ratio}%"></i></div></article>`;}).join('')||'<div class="empty-state">Aucune dépense catégorisée pour ce mois.</div>'}</div>
         </section>
         <section class="card month-status-v7"><p class="eyebrow">Écart au budget</p><strong class="${Number(closeout.variance_cents)<0?'danger':'positive'}">${euro(closeout.variance_cents)}</strong><p class="subtle">Taux d'épargne : ${closeout.savings_rate_pct??'—'} %</p></section>`;
+      q('#retryRecurringStatus')?.addEventListener('click',renderMonth);
       q('#prevMonth').addEventListener('click',()=>shiftMonth(-1));
       q('#nextMonth').addEventListener('click',()=>shiftMonth(1));
       bindNavigation(root);
