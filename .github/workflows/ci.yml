@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, feature/v7-recurring-foundation]
   workflow_dispatch:
 
 permissions:
@@ -38,6 +38,9 @@ jobs:
 
       - name: Validate active frontend JavaScript
         run: node --check app/static/v4-ui.js
+
+      - name: Validate monthly recurring UI behavior
+        run: node --test tests/test_monthly_recurring_ui.cjs
 
       - name: Validate installation script syntax
         run: bash -n install-update-helper.sh

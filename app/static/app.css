@@ -493,3 +493,16 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
   .recurring-actions{grid-column:1/-1;justify-content:stretch}
   .recurring-actions .btn{flex:1}
 }
+
+/* Monthly recurring occurrences: keep long labels inside mobile cards. */
+.monthly-recurring-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
+.monthly-recurring-totals>div{display:grid;gap:5px;min-width:0}
+.monthly-recurring-totals span,.monthly-recurring-main small{color:var(--muted);font-size:.8rem}
+.monthly-recurring-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.monthly-recurring-row:last-child{border-bottom:0}
+.monthly-recurring-main{display:grid;gap:5px;min-width:0;overflow-wrap:anywhere}
+.monthly-recurring-amount{display:grid;gap:5px;text-align:right;flex-shrink:0}
+.monthly-recurring-status{font-size:.75rem;color:var(--muted)}
+.monthly-recurring-status[data-status="paid"]{color:var(--good)}
+.monthly-recurring-status[data-status="overdue"]{color:var(--bad)}
+@media(max-width:380px){.monthly-recurring-totals{grid-template-columns:1fr}.monthly-recurring-totals>div{grid-template-columns:minmax(0,1fr) auto}}

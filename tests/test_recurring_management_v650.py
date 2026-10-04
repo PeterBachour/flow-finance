@@ -1,6 +1,13 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+
+
+@pytest.fixture(autouse=True)
+def no_bootstrap_data(monkeypatch):
+    # API lifespan must not mix bootstrap charges into the synthetic fixtures.
+    monkeypatch.setattr('app.main.bootstrap_if_needed', lambda: None)
 
 
 def test_recurring_management_contract(tmp_path, monkeypatch):
