@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync('app/static/v4-ui.js','utf8');
 const context={Intl,Date,URLSearchParams,FormData:class FormData{},document:{readyState:'loading',addEventListener(){},createElement(){return {set textContent(value){this.innerHTML=String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}};}}};
 vm.createContext(context);
-vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.categoryBreakdown=monthlyCategoryBreakdown; globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.goalCard=wealthGoalCard; globalThis.renderWealthScreen=renderWealth; globalThis.renderMovementsScreen=renderMovements; globalThis.flowState=state;\n  if(document.readyState===\'loading\')'),context);
+vm.runInContext(source.replace("  if(document.readyState==='loading')",'  globalThis.categoryBreakdown=monthlyCategoryBreakdown; globalThis.movementSummary=movementSelectionSummary; globalThis.renderRecurringCard=monthlyRecurringCard; globalThis.renderMonthScreen=renderMonth; globalThis.renderHomeScreen=renderHome; globalThis.goalCard=wealthGoalCard; globalThis.renderWealthScreen=renderWealth; globalThis.renderMovementsScreen=renderMovements; globalThis.flowState=state;\n  if(document.readyState===\'loading\')'),context);
 const render=context.renderRecurringCard;
 test('loading failure differs from an empty month and allows retry',()=>{
  const unavailable=render(null),empty=render({summary:{},items:[]});
@@ -168,4 +168,13 @@ test('empty and invalid category amounts never create invalid shares',()=>{
  }
  const html=context.categoryBreakdown([{category:'Sans budget',spent_cents:100,planned_cents:null,recommended_remaining_cents:null}]);
  assert.doesNotMatch(html,/Budget prévu|Reste recommandé/);
+});
+
+test('movement summary explains the selected scope and net amount',()=>{
+ const html=context.movementSummary([{amount_cents:-1200,is_internal_transfer:false},{amount_cents:5000,is_internal_transfer:false},{amount_cents:-300,is_internal_transfer:true},{amount_cents:-200,exclude_from_analytics:true}]);
+ assert.match(html,/Dépenses de la sélection/);assert.match(html,/12,00/);assert.match(html,/Revenus de la sélection/);assert.match(html,/50,00/);assert.match(html,/Solde net de la sélection/);assert.match(html,/38,00/);
+});
+test('movement summary handles zero and negative net deterministically',()=>{
+ const html=context.movementSummary([{amount_cents:-4500},{amount_cents:1000}]);
+ assert.match(html,/Solde net de la sélection/);assert.match(html,/-35,00/);assert.match(html,/class="negative"/);
 });

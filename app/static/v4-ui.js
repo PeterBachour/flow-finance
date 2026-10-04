@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.5.7';
+  const VERSION='6.5.8';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -325,6 +325,16 @@
     },true);
   }
 
+  function movementSelectionSummary(rows){
+    const items=rows||[];
+    const expenses=items.filter(item=>Number(item.amount_cents)<0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
+    const incomes=items.filter(item=>Number(item.amount_cents)>0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
+    const expenseTotal=expenses.reduce((sum,item)=>sum+Math.abs(Number(item.amount_cents)||0),0);
+    const incomeTotal=incomes.reduce((sum,item)=>sum+Number(item.amount_cents||0),0);
+    const net=incomeTotal-expenseTotal;
+    return `<div class="movement-totals"><div><span>Dépenses de la sélection</span><strong class="negative">-${euro(expenseTotal)}</strong></div><div><span>Revenus de la sélection</span><strong class="positive">+${euro(incomeTotal)}</strong></div><div><span>Solde net de la sélection</span><strong class="${net>=0?'positive':'negative'}">${net>=0?'+':''}${euro(net)}</strong></div></div>`;
+  }
+
   let movementRequest=0;
   async function renderMovements(){
     const request=++movementRequest,month=state.month,query=state.query,filter=state.filter;
@@ -342,10 +352,6 @@
       let visible=rows||[];
       if(filter==='expense')visible=visible.filter(item=>Number(item.amount_cents)<0&&!item.is_internal_transfer);
       if(filter==='income')visible=visible.filter(item=>Number(item.amount_cents)>0&&!item.is_internal_transfer);
-      const expenses=(rows||[]).filter(item=>Number(item.amount_cents)<0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
-      const incomes=(rows||[]).filter(item=>Number(item.amount_cents)>0&&!item.is_internal_transfer&&!item.exclude_from_analytics);
-      const expenseTotal=expenses.reduce((sum,item)=>sum+Math.abs(Number(item.amount_cents)||0),0);
-      const incomeTotal=incomes.reduce((sum,item)=>sum+Number(item.amount_cents||0),0);
       const groups=[];
       visible.forEach(item=>{
         const day=String(item.booking_date||'');
@@ -371,11 +377,8 @@
       root.innerHTML=page('Historique','Mouvements','Toutes tes opérations, sans bruit technique.')+`
         <section class="card movement-overview movement-overview-v7">
           <div class="section-head"><div><p class="eyebrow">${monthLabel(month)}</p><h2>Résumé du mois</h2></div><span class="confidence-pill">${rows.length} opération(s)</span></div>
-          <div class="movement-totals">
-            <div><span>Dépenses</span><strong class="negative">-${euro(expenseTotal)}</strong></div>
-            <div><span>Revenus</span><strong class="positive">+${euro(incomeTotal)}</strong></div>
-            <div><span>À classer</span><strong>${summary.uncategorized||0}</strong></div>
-          </div>
+          ${movementSelectionSummary(rows)}
+          <div class="movement-selection-note">${query||filter!=='all'?`Montants calculés sur la sélection filtrée. `:''}Les transferts internes et mouvements exclus des analyses ne sont pas inclus. <strong>${summary.uncategorized||0}</strong> mouvement(s) restent à classer sur le mois.</div>
         </section>
         <section class="card movement-controls-v7">
           <div class="month-picker-controls"><button class="icon-btn" id="movementPrevMonth" aria-label="Mois précédent">‹</button><input id="movementMonth" type="month" value="${month}" aria-label="Mois des mouvements"><button class="icon-btn" id="movementNextMonth" aria-label="Mois suivant">›</button></div>
