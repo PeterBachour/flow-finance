@@ -38,3 +38,5 @@ def test_v48_ui_requires_preview_before_apply_and_explicit_recurring_decision():
     assert 'data-filter="uncategorized"' in js
     assert '/api/v3.7/data-intelligence?limit=250' in js
     assert 'data-v48-pattern' in js
+    assert 'data-v48-category' in js
+    assert 'suggestedCategory' in js
