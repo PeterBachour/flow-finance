@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.6.7';
+  const VERSION='6.6.8';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),

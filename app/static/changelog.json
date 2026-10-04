@@ -1,6 +1,15 @@
 {
   "releases": [
     {
+      "version": "6.6.8",
+      "date": "2026-10-04",
+      "title": "Flow V6.6.8 - Mois manquants du corpus",
+      "highlights": [
+        "Mois manquants exposes dans le dry-run corpus",
+        "Synthese exploitable des gaps de releves"
+      ]
+    },
+    {
       "version": "6.6.7",
       "date": "2026-10-04",
       "title": "Flow V6.6.7 - Application corpus gardee",

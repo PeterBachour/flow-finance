@@ -57,6 +57,8 @@ def test_gap_does_not_report_a_false_balance_break():
     assert report['status'] == 'warning'
     assert report['can_commit'] is True
     assert report['requires_confirmation'] is True
+    assert report['missing_months'] == ['2025-10']
+    assert report['missing_month_count'] == 1
     assert len(report['issues']) == 1
 
 
@@ -100,3 +102,13 @@ def test_apply_preflight_blocks_overlaps_even_with_confirmation():
 
     with pytest.raises(ValueError, match='blocking'):
         validate_apply_preflight(probes, confirm_warnings=True)
+
+
+def test_gap_summary_exposes_all_missing_months():
+    report = analyze_continuity([
+        probe('january.pdf', '2026-01-01', '2026-01-31', 10000, 12000),
+        probe('april.pdf', '2026-04-01', '2026-04-30', 12000, 9000),
+    ])
+
+    assert report['missing_months'] == ['2026-02', '2026-03']
+    assert report['missing_month_count'] == 2

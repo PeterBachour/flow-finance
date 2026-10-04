@@ -1,3 +1,8 @@
+## 6.6.8 — Mois manquants du corpus
+- Le rapport de corpus expose maintenant `missing_months` et `missing_month_count`.
+- Les trous de releves deviennent directement exploitables par les scripts et l'UI.
+- Les tests couvrent les gaps simples et multi-mois.
+
 ## 6.6.7 — Application corpus gardée
 - Le mode `--apply` du corpus bloque les incohérences du preflight avant toute écriture.
 - Les trous de période exigent maintenant `--confirm-warnings`, comme dans l'interface.
