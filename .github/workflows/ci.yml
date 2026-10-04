@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, feature/v7-recurring-foundation, feat/month-recurring-details, feat/month-close-explanation]
+    branches: [main, feature/v7-recurring-foundation, feat/month-recurring-details, feat/month-close-explanation, fix/home-certified-availability]
   workflow_dispatch:
 
 permissions:

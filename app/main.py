@@ -343,6 +343,7 @@ def recurring_status(month: str):
                WHERE booking_date BETWEEN ? AND ?
                  AND amount_cents<0
                  AND COALESCE(is_internal_transfer,0)=0
+                 AND COALESCE(status,'confirmed')='confirmed'
                ORDER BY booking_date,id""",
             (
                 (month_start - timedelta(days=5)).isoformat(),
@@ -381,9 +382,14 @@ def recurring_status(month: str):
                 label_match = bool(expected_label and tx_label and (
                     expected_label in tx_label or tx_label in expected_label
                 ))
-                candidates.append((0 if label_match else 1, date_gap, amount_gap, transaction))
+                if not label_match:
+                    continue
+                candidates.append((date_gap, amount_gap, transaction))
 
-            match = min(candidates, key=lambda item: item[:3])[3] if candidates else None
+            candidates.sort(key=lambda item: item[:2])
+            # Equal candidates cannot identify a payment with enough confidence.
+            ambiguous = len(candidates) > 1 and candidates[0][:2] == candidates[1][:2]
+            match = candidates[0][2] if candidates and not ambiguous else None
             if match:
                 used_transaction_ids.add(int(match['id']))
                 status = 'paid'

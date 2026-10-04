@@ -1,3 +1,10 @@
+## 6.5.4 — Rapprochement des charges régulières
+
+- Exige une correspondance de libellé en plus du compte, du montant et de la date pour détecter un paiement.
+- Exclut les mouvements non confirmés du suivi des charges payées.
+- Laisse les correspondances de même qualité à vérifier plutôt que de choisir arbitrairement un mouvement.
+- Aucun mouvement historique modifié ; le rapprochement reste estimatif et en lecture seule.
+
 ## 6.5.3 — Disponible certifié sur l'accueil
 
 - Respecte la disponibilité du contrat V6 et conserve les montants inconnus sans conversion en zéro.
