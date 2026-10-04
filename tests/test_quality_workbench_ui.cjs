@@ -13,7 +13,8 @@ function setup(fail=false){
 }
 test('shell loads quality script and styles with the active release',()=>{
  const shell=fs.readFileSync('app/static/index.html','utf8');
- for(const file of ['v48-operations-ui.js','v48-operations.css'])assert.match(shell,new RegExp('/static/'+file.replaceAll('.','\\.')+'\\?v=6\\.5\\.13'));
+ const version=fs.readFileSync('app/version.py','utf8').match(/VERSION = '([^']+)'/)[1];
+ for(const file of ['v48-operations-ui.js','v48-operations.css'])assert.ok(shell.includes(`/static/${file}?v=${version}`));
 });
 test('workbench renders beside actual controls and opens a blank bulk form on click',async()=>{
  const s=setup();await s.context.refresh();assert.match(s.html(),/3 à catégoriser/);assert.match(s.html(),/>6<\/span>/);

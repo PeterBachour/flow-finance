@@ -506,3 +506,7 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .monthly-recurring-status[data-status="paid"]{color:var(--good)}
 .monthly-recurring-status[data-status="overdue"]{color:var(--bad)}
 @media(max-width:380px){.monthly-recurring-totals{grid-template-columns:1fr}.monthly-recurring-totals>div{grid-template-columns:minmax(0,1fr) auto}}
+
+.budget-category-link[data-category]{cursor:pointer}
+.budget-category-link[data-category]:focus-visible{outline:3px solid var(--accent,#0B2D4F);outline-offset:3px}
+.budget-category-link[data-category]:hover{background:var(--surface-soft)}
