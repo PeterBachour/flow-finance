@@ -34,3 +34,5 @@ def test_v48_ui_requires_preview_before_apply_and_explicit_recurring_decision():
     assert 'Confirmer et appliquer' in js
     assert '/api/v4.8/recurring-review/decision' in js
     assert 'Accepter' in js and 'Rejeter' in js
+    assert 'v48UncategorizedBtn' in js
+    assert 'data-filter="uncategorized"' in js

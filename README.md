@@ -1,6 +1,6 @@
 # Flow Finance
 
-> Version 6.5.8 — cockpit prédictif avec Safe to Spend certifié et trajectoire quotidienne jusqu'au prochain salaire.
+> Version 6.5.9 — cockpit prédictif avec Safe to Spend certifié et trajectoire quotidienne jusqu'au prochain salaire.
 
 Flow Finance est une PWA personnelle de pilotage financier, auto-hébergée et orientée décision.
 
@@ -10,7 +10,7 @@ Sa question centrale est :
 
 ## État du projet
 
-- Version applicative : `6.5.8`
+- Version applicative : `6.5.9`
 - Dépôt de référence : `PeterBachour/flow-finance`
 - Branche de référence : `main`
 - Runtime cible : Raspberry Pi 4 sous Debian 13
