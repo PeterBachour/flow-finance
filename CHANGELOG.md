@@ -1,3 +1,10 @@
+## 6.5.7 — Dépenses par catégorie lisibles
+
+- Affiche les dépenses et leur part dans les catégories du budget, avec périmètre explicite.
+- Sépare le budget prévu, le dépassement et le reste recommandé.
+- Regroupe les catégories au-delà des six premières et conserve leur montant.
+- Aucun changement des calculs financiers.
+
 ## 6.5.6 — Navigation mensuelle cohérente
 
 - Ajoute un sélecteur direct de mois et conserve la navigation pendant le chargement.

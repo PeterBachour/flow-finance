@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.5.6';
+  const VERSION='6.5.7';
   const state={
     screen:'home',
     month:new Date().toISOString().slice(0,7),
@@ -217,6 +217,22 @@
     });
   }
 
+  function monthlyCategoryBreakdown(lines){
+    const categories=(lines||[]).filter(item=>Number.isFinite(Number(item.spent_cents))&&Number(item.spent_cents)>0)
+      .map(item=>({...item,spent_cents:Number(item.spent_cents)})).sort((a,b)=>b.spent_cents-a.spent_cents);
+    const total=categories.reduce((sum,item)=>sum+item.spent_cents,0);
+    if(!total)return '<div class="empty-state">Aucune dépense dans les catégories du budget pour ce mois.</div>';
+    const visible=categories.slice(0,6),others=categories.slice(6);
+    if(others.length)visible.push({category:`Autres catégories (${others.length})`,spent_cents:others.reduce((sum,item)=>sum+item.spent_cents,0),aggregate:true});
+    return `<p class="subtle">${euro(total)} dépensés dans les catégories du budget. Les parts ci-dessous portent sur ce total ; les dépenses hors budget ne sont pas incluses.</p><div class="budget-list">${visible.map(item=>{
+      const share=item.spent_cents/total*100,percent=new Intl.NumberFormat('fr-FR',{maximumFractionDigits:1}).format(share);
+      const planned=Number(item.planned_cents),remaining=Number(item.recommended_remaining_cents);
+      const budget=!item.aggregate&&item.planned_cents!=null&&Number.isFinite(planned)?`<small>Budget prévu : ${euro(planned)}${planned>0&&item.spent_cents>planned?' · Dépassé de '+euro(item.spent_cents-planned):''}</small>`:'';
+      const allowance=!item.aggregate&&item.recommended_remaining_cents!=null&&Number.isFinite(remaining)?`<small>Reste recommandé : ${euro(remaining)}</small>`:'';
+      return `<article class="budget-item"><div class="budget-item-head"><div><strong>${esc(item.category)}</strong><small>${percent} % des dépenses des catégories du budget</small>${budget}${allowance}</div><div class="money">${euro(item.spent_cents)}<small>dépensés</small></div></div><div class="budget-track" role="img" aria-label="Part des dépenses : ${percent} %"><i style="width:${share}%"></i></div></article>`;
+    }).join('')}</div>`;
+  }
+
   let monthRequest=0;
   async function renderMonth(){
     const request=++monthRequest,month=state.month;
@@ -239,7 +255,6 @@
       const income=Number(current.income_cents||0),spent=Number(current.spent_cents||0);
       const activeRecurring=(recurring||[]).filter(item=>Number(item.is_active)!==0&&Number(item.amount_cents)<0);
       const recurringMonthly=activeRecurring.reduce((sum,item)=>sum+monthlyEquivalent(item),0);
-      const topCategories=[...lines].sort((a,b)=>Number(b.spent_cents||0)-Number(a.spent_cents||0)).slice(0,6);
       root.innerHTML=page('Ce mois-ci','Mois','Revenus, dépenses, réguliers et ce qui devrait rester.')+`
         ${monthToolbar(month)}
         <section class="card month-balance month-balance-v7"><div><p class="eyebrow">Ce qui devrait rester</p><strong class="${monthClose>=0?'positive':'danger'}">${hasClosing?euro(monthClose):'Indisponible'}</strong><small class="subtle">Solde estimé à la fin du mois</small></div></section>
@@ -262,7 +277,7 @@
         ${monthlyRecurringCard(recurringStatus)}
         <section class="card">
           <div class="section-head"><div><p class="eyebrow">Où part l'argent</p><h2>Principales catégories</h2></div></div>
-          <div class="budget-list">${topCategories.map(item=>{const spentValue=Number(item.spent_cents)||0,planned=Math.max(0,Number(item.planned_cents)||0),ratio=planned?Math.min(100,Math.round(spentValue/planned*100)):0;return `<article class="budget-item"><div class="budget-item-head"><div><strong>${esc(item.category)}</strong><small>${euro(spentValue)} dépensés${planned?' sur '+euro(planned):''}</small></div><div class="money">${euro(item.recommended_remaining_cents)}</div></div><div class="budget-track ${ratio>90?'warning':''}"><i style="width:${ratio}%"></i></div></article>`;}).join('')||'<div class="empty-state">Aucune dépense catégorisée pour ce mois.</div>'}</div>
+          ${monthlyCategoryBreakdown(lines)}
         </section>
         <section class="card month-status-v7"><p class="eyebrow">Écart au budget</p><strong class="${Number(closeout.variance_cents)<0?'danger':'positive'}">${euro(closeout.variance_cents)}</strong><p class="subtle">Taux d'épargne : ${closeout.savings_rate_pct??'—'} %</p></section>`;
       q('#retryRecurringStatus')?.addEventListener('click',renderMonth);
