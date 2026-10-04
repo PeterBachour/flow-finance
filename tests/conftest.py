@@ -33,8 +33,6 @@ _RETIRED_UI_CONTRACTS = {
     'tests/test_v5_recommendations_rc.py::test_v5_recommendations_assets_are_wired_and_cached',
     'tests/test_v5_release_consolidation_rc.py::test_v5_home_has_one_decision_overlay_and_legacy_overlay_is_not_loaded',
     'tests/test_v5_release_final.py::test_flow_v5_runtime_keeps_single_home_overlay_and_v51_assets',
-    'tests/test_v63_cockpit_ui.py::test_active_shell_loads_only_canonical_ui',
-    'tests/test_v63_cockpit_ui.py::test_active_version_is_consistent',
     'tests/test_wealth_readiness_v410.py::test_wealth_readiness_ui_exposes_freshness_and_goal_update',
 }
 

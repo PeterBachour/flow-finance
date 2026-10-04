@@ -97,3 +97,17 @@ def test_v62_preserves_unavailable_status_for_stale_balance():
     )
     assert result['availability']['available'] is False
     assert result['safe_to_spend']['total_cents'] is None
+
+
+def test_v62_uses_weekly_frequency_and_explicit_next_occurrence():
+    from app.forecast_v6 import _dated_events
+
+    conn = database()
+    conn.execute("""INSERT INTO recurring_transactions(
+        id,account_id,label,amount_cents,day_of_month,kind,certainty,
+        frequency,next_occurrence,next_expected_date,source_type
+    ) VALUES(1,1,'Hebdo',-1000,16,'commitment','expected',
+        'weekly','2026-09-16','2026-09-20','manual')""")
+    _, events = _dated_events(conn, as_of=date(2026, 9, 14), horizon_end=date(2026, 10, 1))
+    assert [event['date'] for event in events] == ['2026-09-16', '2026-09-23', '2026-09-30']
+    assert sum(event['amount_cents'] for event in events) == -3000

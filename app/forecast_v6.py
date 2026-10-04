@@ -144,8 +144,7 @@ def _dated_events(conn, *, as_of: date, horizon_end: date) -> tuple[list[dict], 
         realistic.append(event)
 
     recurring_rows = conn.execute(
-        '''SELECT id,label,amount_cents,usual_day,day_of_month,next_expected_date,last_seen_date,
-                  source_type,tolerance_cents,category,kind,certainty,validation_status
+        '''SELECT *
            FROM recurring_transactions
            WHERE is_active=1
              AND (detection_status='accepted' OR validation_status='confirmed')
@@ -158,15 +157,18 @@ def _dated_events(conn, *, as_of: date, horizon_end: date) -> tuple[list[dict], 
         if source_type in {'history', 'auto', 'detected'} and not recurring_is_fresh(row['last_seen_date'], as_of):
             continue
         usual_day = int(row['usual_day'] or row['day_of_month'] or 1)
-        if row['next_expected_date']:
-            first = date.fromisoformat(row['next_expected_date'])
+        keys = set(row.keys())
+        frequency = str(row['frequency'] if 'frequency' in keys else 'monthly').lower()
+        next_date = (row['next_occurrence'] if 'next_occurrence' in keys else None) or row['next_expected_date']
+        if next_date:
+            first = date.fromisoformat(next_date)
         else:
             first = date(
                 as_of.year,
                 as_of.month,
                 min(max(1, usual_day), calendar.monthrange(as_of.year, as_of.month)[1]),
             )
-        for occurrence in _recurring_dates(first, usual_day, as_of + timedelta(days=1), horizon_end):
+        for occurrence in _recurring_dates(first, usual_day, frequency, as_of + timedelta(days=1), horizon_end):
             if _planned_overlaps_recurring(planned_rows, row, occurrence):
                 continue
             if _cycle_overlaps_recurring(cycle_rows, row, occurrence, cycle_month):
