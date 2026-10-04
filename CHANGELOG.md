@@ -1,3 +1,9 @@
+## 6.5.11 — Groupes de libellés prêts à classer
+
+- Affiche les groupes de libellés récurrents encore non confirmés dans Mouvements.
+- Ouvre la catégorisation groupée avec le motif prérempli.
+- Une indisponibilité de l'analyse des groupes ne bloque pas l'écran Mouvements.
+
 ## 6.5.10 — Détail des catégories accessible
 
 - Les catégories de la page Mois ouvrent directement les mouvements correspondants.

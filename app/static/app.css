@@ -120,8 +120,6 @@ svg{display:block}
 .budget-list{display:grid;gap:4px}
 .budget-item{padding:12px 0;border-bottom:1px solid var(--line)}
 .budget-item:last-child{border-bottom:0}
-.budget-category-link{cursor:pointer}
-.budget-category-link:focus-visible{outline:2px solid var(--teal);outline-offset:4px;border-radius:8px}
 .budget-item-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
 .budget-item strong,.budget-item small{display:block}
 .budget-item strong{font-size:.88rem}
