@@ -124,12 +124,12 @@
   async function renderHome(){
     const root=q('[data-screen="home"]');root.innerHTML=page('Aujourd’hui',todayLabel(),'Ce que tu peux réellement dépenser, et pourquoi.')+skeleton();
     try{
-      const [dashboard,safeToSpend,trajectory,recurring]=await Promise.all([
+      const [dashboard,safeToSpend,trajectory,recurring,accuracy]=await Promise.all([
         api('/api/dashboard'),
         api('/api/v6/safe-to-spend'),
         api('/api/v6/trajectory'),
         api('/api/recurring'),
-        api(`/api/recurring/status?month=${state.month}`).catch(()=>({summary:{},items:[]}))
+        api('/api/v6/forecast-accuracy').catch(()=>null)
       ]);
       const components=safeToSpend?.components||{},safe=safeToSpend?.safe_to_spend||{},realistic=trajectory?.scenarios?.realistic||{};
       const events=(realistic.timeline||[]).flatMap(day=>(day.events||[]).map(event=>({...event,date:event.date||day.date})));
@@ -170,6 +170,7 @@
           <div class="section-head"><div><p class="eyebrow">À venir</p><h2>Prochaines sorties</h2></div><button class="section-action" data-go="recurring">Voir les réguliers</button></div>
           <div class="stack">${upcoming.map(event=>`<div class="decision-row compact-decision"><div><strong>${esc(event.label||'Échéance')}</strong><small>${dateLabel(event.date)} · ${esc(event.source||event.certainty||'Prévision')}</small></div><div class="money negative">${euro(event.amount_cents)}</div></div>`).join('')||'<div class="empty-state">Aucune sortie identifiée sur l’horizon actuel.</div>'}</div>
         </section>
+        ${forecastAccuracyCard(accuracy)}
         <section class="home-actions-v7">
           <button class="card action-card-v7" data-go="month"><span>Ce mois-ci</span><strong>Comprendre mes dépenses</strong><small>Budget, fin de mois et catégories</small></button>
           <button class="card action-card-v7" data-go="movements"><span>Mouvements</span><strong>Voir mes transactions</strong><small>Rechercher et corriger</small></button>
