@@ -41,6 +41,8 @@ def test_gap_is_warning_but_does_not_block_commit():
     assert result['issues'][0]['type'] == 'period_gap'
     assert result['issues'][0]['missing_start'] == '2026-02-01'
     assert result['issues'][0]['missing_end'] == '2026-02-28'
+    assert result['missing_months'] == ['2026-02']
+    assert result['missing_month_count'] == 1
     assert not any(issue['type'] == 'balance_discontinuity' for issue in result['issues'])
 
 

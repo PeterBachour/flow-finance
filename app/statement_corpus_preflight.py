@@ -100,6 +100,34 @@ def _same_statement(left: StatementRecord, right: StatementRecord) -> bool:
     )
 
 
+def _month_iter(start: str, end: str) -> list[str]:
+    start_date = date.fromisoformat(start)
+    end_date = date.fromisoformat(end)
+    year = start_date.year
+    month = start_date.month
+    months: list[str] = []
+    while (year, month) <= (end_date.year, end_date.month):
+        months.append(f'{year:04d}-{month:02d}')
+        if month == 12:
+            year += 1
+            month = 1
+        else:
+            month += 1
+    return months
+
+
+def _missing_months(issues: list[dict]) -> list[str]:
+    months: set[str] = set()
+    for issue in issues:
+        if issue.get('type') != 'period_gap':
+            continue
+        missing_start = issue.get('missing_start')
+        missing_end = issue.get('missing_end')
+        if missing_start and missing_end:
+            months.update(_month_iter(missing_start, missing_end))
+    return sorted(months)
+
+
 def analyze_records(records: list[StatementRecord]) -> dict:
     usable = [
         record for record in records
@@ -186,6 +214,7 @@ def analyze_records(records: list[StatementRecord]) -> dict:
 
     blocking = [issue for issue in issues if issue['severity'] == 'blocking']
     warnings = [issue for issue in issues if issue['severity'] == 'warning']
+    missing_months = _missing_months(issues)
     staged = [record for record in records if record.staged]
     duplicate_count = sum(
         1
@@ -203,6 +232,8 @@ def analyze_records(records: list[StatementRecord]) -> dict:
         'coverage_end': usable[-1].period_end if usable else None,
         'blocking_count': len(blocking),
         'warning_count': len(warnings),
+        'missing_months': missing_months,
+        'missing_month_count': len(missing_months),
         'issues': issues,
         'records': [_record_dict(record) for record in usable],
     }
